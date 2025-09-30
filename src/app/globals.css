@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Force sidebar colors */
+[data-sidebar="sidebar"] {
+  background-color: #2e9589 !important;
+  color: white !important;
+}
+
+.bg-sidebar {
+  background-color: #2e9589 !important;
+}
+
+.text-sidebar-foreground {
+  color: white !important;
+}

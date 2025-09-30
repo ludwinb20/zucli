@@ -1,0 +1,95 @@
+/* Custom styles for react-pro-sidebar */
+
+/* Override default sidebar styles */
+.pro-sidebar {
+  background-color: #2E9589 !important;
+  color: white !important;
+}
+
+.pro-sidebar .pro-menu {
+  background-color: transparent !important;
+}
+
+.pro-sidebar .pro-menu-item {
+  color: white !important;
+  background-color: transparent !important;
+  border-radius: 8px !important;
+  margin: 2px 8px !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+}
+
+.pro-sidebar .pro-menu-item.active {
+  background-color: #4CAF50 !important;
+  color: white !important;
+}
+
+.pro-sidebar .pro-menu-item .pro-item-content {
+  color: white !important;
+}
+
+.pro-sidebar .pro-menu-item .pro-icon-wrapper {
+  color: white !important;
+}
+
+.pro-sidebar .pro-sidebar-header {
+  background-color: #2E9589 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.pro-sidebar .pro-sidebar-footer {
+  background-color: #2E9589 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* SubMenu styles */
+.pro-sidebar .pro-sub-menu {
+  background-color: transparent !important;
+}
+
+.pro-sidebar .pro-sub-menu .pro-menu-item {
+  background-color: transparent !important;
+  color: white !important;
+}
+
+.pro-sidebar .pro-sub-menu .pro-inner-list-item {
+  background-color: rgba(46, 149, 137, 0.3) !important;
+  border-radius: 6px !important;
+  margin: 2px 4px !important;
+}
+
+.pro-sidebar .pro-sub-menu .pro-inner-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.pro-sidebar .pro-sub-menu .pro-inner-list-item.active {
+  background-color: #4CAF50 !important;
+}
+
+/* Collapsed state styles */
+.pro-sidebar.collapsed .pro-menu-item .pro-item-content {
+  display: none !important;
+}
+
+.pro-sidebar.collapsed .pro-sidebar-header h2 {
+  display: none !important;
+}
+
+.pro-sidebar.collapsed .pro-menu-item {
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.pro-sidebar.collapsed .pro-menu-item .pro-icon-wrapper {
+  margin-right: 0 !important;
+  justify-content: center !important;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .pro-sidebar {
+    width: 100% !important;
+    position: fixed !important;
+    z-index: 1000 !important;
+  }
+}
