@@ -1,5 +1,9 @@
 {
-    "rewrites": [
-        {"source": "/(.*)", "destination": "/"}
-    ]
+  "buildCommand": "pnpm build",
+  "devCommand": "pnpm dev",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "env": {
+    "NEXTAUTH_URL": "https://zucli.vercel.app"
+  }
 }
