@@ -167,6 +167,8 @@ export function AppSidebar() {
                 borderRadius: "8px",
                 objectFit: "cover",
               }}
+              width={48}
+              height={48}
             />
             <div>
               <span
@@ -219,6 +221,8 @@ export function AppSidebar() {
                 height: "48px",
                 objectFit: "cover",
               }}
+              width={48}
+              height={48}
             />
           ) : (
             <ArrowLeft size={16} />
