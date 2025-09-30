@@ -26,8 +26,11 @@ export async function GET() {
     });
 
     // No incluir las contraseñas en la respuesta
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const usersWithoutPassword = users.map(({ password: _password, ...user }) => user);
+    const usersWithoutPassword = users.map((user) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userWithoutPassword } = user;
+      return userWithoutPassword;
+    });
 
     return NextResponse.json(usersWithoutPassword);
   } catch (error) {
@@ -120,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     // No incluir la contraseña en la respuesta
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...userWithoutPassword } = newUser;
+    const { password: _password, ...userWithoutPassword } = newUser;
 
     return NextResponse.json(userWithoutPassword, { status: 201 });
   } catch (error) {
