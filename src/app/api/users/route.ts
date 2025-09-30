@@ -26,7 +26,7 @@ export async function GET() {
     });
 
     // No incluir las contraseñas en la respuesta
-    const usersWithoutPassword = users.map((user) => {
+    const usersWithoutPassword = users.map((user: typeof users[0]) => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...userWithoutPassword } = user;
       return userWithoutPassword;
