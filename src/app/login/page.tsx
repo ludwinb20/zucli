@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const success = await login(email, password);
+      const success = await login(username, password);
       if (success) {
         router.push('/dashboard');
       } else {
@@ -65,13 +65,13 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-700">Email</Label>
+              <Label htmlFor="username" className="text-gray-700">Usuario</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="usuario@clinica.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="nombre_usuario"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 className="border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
               />
