@@ -133,7 +133,7 @@ export default function AdminPage() {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     setServices(prev => prev.map(s => 
-      s.id === editingService.id ? { ...s, ...editingService } : s
+      s.id === editingService?.id ? { ...s, ...editingService } : s
     ));
     
     setIsEditing(false);
@@ -416,7 +416,7 @@ export default function AdminPage() {
                     <Input
                       id="editName"
                       value={editingService.name}
-                      onChange={(e) => setEditingService(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setEditingService(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
                     />
                   </div>
                   
@@ -425,7 +425,7 @@ export default function AdminPage() {
                     <Input
                       id="editDescription"
                       value={editingService.description}
-                      onChange={(e) => setEditingService(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e) => setEditingService(prev => prev ? ({ ...prev, description: e.target.value }) : null)}
                     />
                   </div>
                   
@@ -436,7 +436,7 @@ export default function AdminPage() {
                       type="number"
                       step="0.01"
                       value={editingService.basePrice}
-                      onChange={(e) => setEditingService(prev => ({ ...prev, basePrice: parseFloat(e.target.value) }))}
+                      onChange={(e) => setEditingService(prev => prev ? ({ ...prev, basePrice: parseFloat(e.target.value) }) : null)}
                     />
                   </div>
                   

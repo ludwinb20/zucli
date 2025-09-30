@@ -1,19 +1,35 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, CreditCard, DollarSign, Receipt, CheckCircle, AlertCircle } from 'lucide-react';
+import { DollarSign, Receipt, CheckCircle } from 'lucide-react';
+
+interface Invoice {
+  id: string;
+  patientName: string;
+  services: string[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  rtn: string | null;
+  createdAt: string;
+  paidAt?: string | null;
+  paymentMethod?: string;
+}
 
 export default function CashierPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
-  const [paymentData, setPaymentData] = useState({
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [paymentData, setPaymentData] = useState<{
+    method: 'cash' | 'card';
+    amount: string;
+    change: string;
+    rtn: string;
+  }>({
     method: 'cash',
     amount: '',
     change: '',
@@ -84,12 +100,12 @@ export default function CashierPage() {
     if (selectedInvoice && paymentData.amount) {
       const amount = parseFloat(paymentData.amount);
       const total = selectedInvoice.total;
-      return amount >= total ? (amount - total).toFixed(2) : '0.00';
+      return amount >= total ? (amount - total).toFixed(2).toString() : '0.00';
     }
     return '0.00';
   };
 
-  const InvoiceCard = ({ invoice, isPaid = false }: { invoice: any, isPaid?: boolean }) => (
+  const InvoiceCard = ({ invoice, isPaid = false }: { invoice: Invoice, isPaid?: boolean }) => (
     <Card className={`cursor-pointer transition-colors hover:bg-gray-50 ${selectedInvoice?.id === invoice.id ? 'ring-2 ring-blue-500' : ''}`}>
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">

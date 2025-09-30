@@ -1,22 +1,48 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Bed, 
-  Plus, 
   Search, 
-  Eye, 
-  Calendar,
-  UserPlus,
+  Eye,
   Stethoscope,
   Clock,
   DollarSign,
-  Activity
+  Activity,
+  UserPlus
 } from 'lucide-react';
 import { HospitalizationModal } from '@/components/HospitalizationModal';
+
+interface Hospitalizacion {
+  id: string;
+  patientName: string;
+  patientId: string;
+  admissionDate: string;
+  dischargeDate: string | null;
+  room: string;
+  bed: string;
+  diagnosis: string;
+  doctor: string;
+  status: string;
+  totalCost: number;
+  charges: {
+    id: string;
+    description: string;
+    amount: number;
+    date: string;
+    type: string;
+  }[];
+  vitalSigns: {
+    bloodPressure: string;
+    heartRate: string;
+    temperature: string;
+    oxygenSaturation: string;
+  };
+  notes: string;
+}
 
 // Datos dummy para hospitalizaciones
 const DUMMY_HOSPITALIZATIONS = [
@@ -185,10 +211,12 @@ export default function HospitalizationPage() {
   const activeHospitalizations = hospitalizations.filter(h => h.status === 'Activa');
   const totalRevenue = hospitalizations.reduce((sum, h) => sum + h.totalCost, 0);
 
-  const handleAddHospitalization = (hospitalizationData: any) => {
-    const newHospitalization = {
+  const handleAddHospitalization = (hospitalizationData: Omit<Hospitalizacion, 'id'>) => {
+    const newHospitalization: Hospitalizacion = {
       ...hospitalizationData,
       id: Date.now().toString(),
+      status: 'Activa',
+      totalCost: 800.00,
       charges: [
         {
           id: Date.now().toString(),
@@ -197,14 +225,7 @@ export default function HospitalizationPage() {
           date: hospitalizationData.admissionDate,
           type: 'Estadía'
         }
-      ],
-      vitalSigns: {
-        bloodPressure: hospitalizationData.vitalSigns.bloodPressure || '120/80',
-        heartRate: hospitalizationData.vitalSigns.heartRate || '72',
-        temperature: hospitalizationData.vitalSigns.temperature || '36.5°C',
-        oxygenSaturation: hospitalizationData.vitalSigns.oxygenSaturation || '98%'
-      },
-      notes: hospitalizationData.notes || 'Paciente recién ingresado'
+      ]
     };
     
     setHospitalizations([newHospitalization, ...hospitalizations]);

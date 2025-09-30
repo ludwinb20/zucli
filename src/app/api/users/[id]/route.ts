@@ -6,8 +6,9 @@ import { prisma } from '@/lib/prisma';
 // GET - Obtener usuario por ID (solo admin)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
     
@@ -19,7 +20,7 @@ export async function GET(
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         role: true,
       },
@@ -49,8 +50,9 @@ export async function GET(
 // PUT - Actualizar usuario (solo admin)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
     
@@ -66,7 +68,7 @@ export async function PUT(
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingUser) {
@@ -120,7 +122,7 @@ export async function PUT(
 
     // Actualizar el usuario
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(username && { username }),
         ...(email !== undefined && { email: email || null }),
@@ -150,8 +152,9 @@ export async function PUT(
 // DELETE - Eliminar usuario (solo admin)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
     
@@ -164,7 +167,7 @@ export async function DELETE(
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingUser) {
@@ -175,7 +178,7 @@ export async function DELETE(
     }
 
     // No permitir que el admin se elimine a sí mismo
-    if (params.id === session.user.id) {
+    if (id === session.user.id) {
       return NextResponse.json(
         { error: 'No puedes eliminar tu propia cuenta' },
         { status: 400 }
@@ -184,7 +187,7 @@ export async function DELETE(
 
     // Eliminar el usuario y sus datos relacionados (accounts, sessions)
     await prisma.user.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: 'Usuario eliminado correctamente' });

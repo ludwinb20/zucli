@@ -26,7 +26,8 @@ export async function GET() {
     });
 
     // No incluir las contraseñas en la respuesta
-    const usersWithoutPassword = users.map(({ password: _, ...user }) => user);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const usersWithoutPassword = users.map(({ password: _password, ...user }) => user);
 
     return NextResponse.json(usersWithoutPassword);
   } catch (error) {
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     // No incluir la contraseña en la respuesta
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = newUser;
+    const { password: _, ...userWithoutPassword } = newUser;
 
     return NextResponse.json(userWithoutPassword, { status: 201 });
   } catch (error) {

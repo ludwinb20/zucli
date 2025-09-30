@@ -6,12 +6,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
-import { CalendarIcon, UserPlus, X, ChevronDownIcon } from 'lucide-react';
+import { UserPlus, X, ChevronDownIcon } from 'lucide-react';
+
+interface Patient {
+  id: string;
+  name: string;
+  lastName: string;
+  identityNumber: string;
+  birthDate: string;
+  gender: string;
+  phone: string;
+  email: string;
+  address: string;
+}
+
 
 interface PatientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (patient: any) => void;
+  onSave: (patient: Patient) => void;
 }
 
 export function PatientModal({ isOpen, onClose, onSave }: PatientModalProps) {
@@ -54,7 +67,7 @@ export function PatientModal({ isOpen, onClose, onSave }: PatientModalProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
-      onSave(formData);
+      onSave(formData as Patient);
       setFormData({
         name: '',
         lastName: '',

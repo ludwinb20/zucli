@@ -1,15 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, FileText, Search, Filter, Download, Eye, Calendar, DollarSign } from 'lucide-react';
+import { FileText, Search, Filter, Download, Eye, Calendar, DollarSign } from 'lucide-react';
 
 export default function InvoicesListPage() {
-  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');

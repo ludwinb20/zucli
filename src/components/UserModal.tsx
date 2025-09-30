@@ -151,7 +151,14 @@ export function UserModal({ isOpen, onClose, user, onSuccess }: UserModalProps) 
       const url = isEditing ? `/api/users/${user.id}` : "/api/users";
       const method = isEditing ? "PUT" : "POST";
 
-      const body: any = {
+      const body: {
+        username: string;
+        email: string | null;
+        name: string;
+        roleId: string;
+        isActive: boolean;
+        password?: string;
+      } = {
         username: formData.username,
         email: formData.email || null,
         name: formData.name,

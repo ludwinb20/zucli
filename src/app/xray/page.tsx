@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Scan, Clock, DollarSign, Calendar } from 'lucide-react';
+import { Clock, DollarSign, Calendar } from 'lucide-react';
 
 export default function XRayPage() {
   const router = useRouter();

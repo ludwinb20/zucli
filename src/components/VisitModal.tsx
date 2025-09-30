@@ -5,13 +5,33 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import * as Dialog from '@radix-ui/react-dialog';
-import { CalendarIcon, Stethoscope, Heart, Thermometer, Weight, Ruler, X } from 'lucide-react';
+import { Stethoscope, Heart, Thermometer, Weight, Ruler, X } from 'lucide-react';
+
+interface Visit {
+  id: string;
+  date: string;
+  diagnosis: string;
+  currentIllness: string;
+  vitalSigns: {
+    bloodPressure: string;
+    heartRate: string;
+    temperature: string;
+    weight: string;
+    height: string;
+  };
+}
+
+interface Patient {
+  id: string;
+  name: string;
+  lastName: string;
+}
 
 interface VisitModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (visit: any) => void;
-  patient: any;
+  onSave: (visit: Omit<Visit, 'id'>) => void;
+  patient: Patient | null;
 }
 
 export function VisitModal({ isOpen, onClose, onSave, patient }: VisitModalProps) {
@@ -89,7 +109,7 @@ export function VisitModal({ isOpen, onClose, onSave, patient }: VisitModalProps
             Nueva Visita Médica
           </Dialog.Title>
           <Dialog.Description className="px-6 pb-4 text-gray-600">
-            {patient && `Registrar visita para ${patient.name} ${patient.lastName}`}
+            {patient ? `Registrar visita para ${patient.name} ${patient.lastName}` : 'Registrar nueva visita'}
           </Dialog.Description>
 
           <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-6">

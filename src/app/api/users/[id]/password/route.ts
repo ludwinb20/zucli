@@ -7,8 +7,9 @@ import bcrypt from 'bcryptjs';
 // PUT - Cambiar contraseña de usuario (solo admin)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
     
@@ -32,7 +33,7 @@ export async function PUT(
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingUser) {
@@ -47,7 +48,7 @@ export async function PUT(
 
     // Actualizar la contraseña
     await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         password: hashedPassword,
       },

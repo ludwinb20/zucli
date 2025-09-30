@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
   Zap, 
-  Plus, 
   Search, 
   Eye, 
   Calendar,
@@ -14,11 +13,36 @@ import {
   Clock,
   DollarSign,
   Activity,
-  Users,
   AlertCircle,
   CheckCircle
 } from 'lucide-react';
 import { SurgeryModal } from '@/components/SurgeryModal';
+
+interface Surgery {
+  id: string;
+  patientName: string;
+  patientId: string;
+  surgeryDate: string;
+  scheduledTime: string;
+  actualStartTime: string | null;
+  actualEndTime: string | null;
+  surgeryType: string;
+  surgeon: string;
+  anesthesiologist: string;
+  nurse: string;
+  operatingRoom: string;
+  status: string;
+  duration: string | null;
+  cost: number;
+  complications: string | null;
+  notes: string;
+  preOpDiagnosis: string;
+  postOpDiagnosis: string | null;
+  bloodLoss: string | null;
+  anesthesia: string;
+  recoveryTime: string | null;
+  dischargeDate: string | null;
+}
 
 // Datos dummy para cirugías
 const DUMMY_SURGERIES = [
@@ -150,7 +174,7 @@ const DUMMY_SURGERIES = [
 ];
 
 export default function SurgeryPage() {
-  const [surgeries, setSurgeries] = useState(DUMMY_SURGERIES);
+  const [surgeries, setSurgeries] = useState<Surgery[]>(DUMMY_SURGERIES);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('Todos');
   const [isSurgeryModalOpen, setIsSurgeryModalOpen] = useState(false);
@@ -171,19 +195,20 @@ export default function SurgeryPage() {
   const scheduledSurgeries = surgeries.filter(s => s.status === 'Programada');
   const totalRevenue = completedSurgeries.reduce((sum, s) => sum + s.cost, 0);
 
-  const handleAddSurgery = (surgeryData: any) => {
-    const newSurgery = {
+  const handleAddSurgery = (surgeryData: Omit<Surgery, 'id' | 'actualStartTime' | 'actualEndTime' | 'duration' | 'cost' | 'complications' | 'postOpDiagnosis' | 'bloodLoss' | 'recoveryTime' | 'dischargeDate' | 'status'>) => {
+    const newSurgery: Surgery = {
       ...surgeryData,
       id: Date.now().toString(),
+      status: 'Programada',
       cost: 0,
+      actualStartTime: null,
+      actualEndTime: null,
+      duration: null,
       complications: null,
       postOpDiagnosis: null,
       bloodLoss: null,
       recoveryTime: null,
-      dischargeDate: null,
-      actualStartTime: null,
-      actualEndTime: null,
-      duration: null
+      dischargeDate: null
     };
     
     setSurgeries([newSurgery, ...surgeries]);

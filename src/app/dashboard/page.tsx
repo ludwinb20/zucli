@@ -2,7 +2,6 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { 
   Users, 
   FileText, 
@@ -10,9 +9,7 @@ import {
   Calendar,
   Scan,
   CreditCard,
-  Settings,
-  LogOut,
-  Stethoscope
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 

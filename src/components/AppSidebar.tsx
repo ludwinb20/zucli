@@ -8,21 +8,17 @@ import {
   Home,
   Users,
   FileText,
-  Calendar,
   Scan,
   CreditCard,
   Bed,
   Zap,
   Settings,
   LogOut,
-  Menu as MenuIcon,
-  MoveLeftIcon,
   ArrowLeft,
-  ChevronRight,
   Dot,
 } from "lucide-react";
-import { Close } from "@radix-ui/react-dialog";
 import "@/styles/sidebar.css";
+import Image from "next/image";
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
@@ -118,16 +114,6 @@ export function AppSidebar() {
     (item) => user?.role?.name && item.roles.includes(user.role.name)
   );
 
-  const getRoleDisplayName = (role: string) => {
-    const roleNames: { [key: string]: string } = {
-      admin: "Administrador",
-      especialista: "Especialista",
-      recepcion: "Recepción",
-      caja: "Caja",
-    };
-    return roleNames[role] || role;
-  };
-
   const handleLogout = () => {
     logout();
     router.push("/login");
@@ -172,7 +158,7 @@ export function AppSidebar() {
               gap: "12px",
             }}
           >
-            <img
+            <Image
               src="/assets/logotipo.png"
               alt="Clinica Zuniga"
               style={{
@@ -225,7 +211,7 @@ export function AppSidebar() {
           title={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
         >
           {collapsed ? (
-            <img
+            <Image
               src="/assets/logotipo.png"
               alt="Clinica Zuniga"
               style={{

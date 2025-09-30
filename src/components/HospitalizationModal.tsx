@@ -1,19 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
 import { 
-  CalendarIcon, 
   Search, 
   User, 
   Bed, 
-  Stethoscope,
-  Clock,
-  AlertCircle,
   CheckCircle,
   X,
   ChevronDownIcon
@@ -31,10 +27,38 @@ interface Patient {
   address: string;
 }
 
+interface Hospitalizacion {
+  id: string;
+  patientName: string;
+  patientId: string;
+  admissionDate: string;
+  dischargeDate: string | null;
+  room: string;
+  bed: string;
+  diagnosis: string;
+  doctor: string;
+  status: string;
+  totalCost: number;
+  charges: {
+    id: string;
+    description: string;
+    amount: number;
+    date: string;
+    type: string;
+  }[];
+  vitalSigns: {
+    bloodPressure: string;
+    heartRate: string;
+    temperature: string;
+    oxygenSaturation: string;
+  };
+  notes: string;
+}
+
 interface HospitalizationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (hospitalizationData: any) => void;
+  onSave: (hospitalizationData: Omit<Hospitalizacion, 'id'>) => void;
 }
 
 // Datos dummy de pacientes para selección
@@ -202,14 +226,25 @@ export function HospitalizationModal({ isOpen, onClose, onSave }: Hospitalizatio
     // Simular guardado
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const hospitalizationData = {
-      ...formData,
+    const hospitalizationData: Omit<Hospitalizacion, 'id'> = {
       patientName: selectedPatient ? `${selectedPatient.name} ${selectedPatient.lastName}` : '',
       patientId: selectedPatient?.identityNumber || '',
+      admissionDate: formData.admissionDate,
+      room: formData.room,
+      bed: formData.bed,
+      diagnosis: formData.diagnosis,
+      doctor: formData.doctor,
       status: 'Activa',
       totalCost: 0,
       charges: [],
-      dischargeDate: null
+      dischargeDate: null,
+      vitalSigns: {
+        bloodPressure: formData.vitalSigns.bloodPressure,
+        heartRate: formData.vitalSigns.heartRate,
+        temperature: formData.vitalSigns.temperature,
+        oxygenSaturation: formData.vitalSigns.oxygenSaturation,
+      },
+      notes: formData.notes
     };
 
     onSave(hospitalizationData);

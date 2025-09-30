@@ -1,21 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
 import { 
-  CalendarIcon, 
   Search, 
   User, 
   Zap, 
-  Clock,
-  AlertCircle,
   CheckCircle,
-  Stethoscope,
-  Activity,
   X,
   ChevronDownIcon
 } from 'lucide-react';
@@ -32,10 +27,36 @@ interface Patient {
   address: string;
 }
 
+interface Surgery {
+  id: string;
+  patientName: string;
+  patientId: string;
+  surgeryDate: string;
+  scheduledTime: string;
+  actualStartTime: string | null;
+  actualEndTime: string | null;
+  surgeryType: string;
+  surgeon: string;
+  anesthesiologist: string;
+  nurse: string;
+  operatingRoom: string;
+  status: string;
+  duration: string | null;
+  cost: number;
+  complications: string | null;
+  notes: string;
+  preOpDiagnosis: string;
+  postOpDiagnosis: string | null;
+  bloodLoss: string | null;
+  anesthesia: string;
+  recoveryTime: string | null;
+  dischargeDate: string | null;
+}
+
 interface SurgeryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (surgeryData: any) => void;
+  onSave: (surgeryData: Omit<Surgery, 'id'>) => void;
 }
 
 // Datos dummy de pacientes para selección
@@ -229,7 +250,7 @@ export function SurgeryModal({ isOpen, onClose, onSave }: SurgeryModalProps) {
     // Simular guardado
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const surgeryData = {
+    const surgeryData: Omit<Surgery, 'id'> = {
       ...formData,
       patientName: selectedPatient ? `${selectedPatient.name} ${selectedPatient.lastName}` : '',
       patientId: selectedPatient?.identityNumber || '',

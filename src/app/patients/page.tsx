@@ -1,22 +1,45 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   Users, 
-  Plus, 
   Search, 
   Eye, 
-  Calendar,
   UserPlus,
   Stethoscope
 } from 'lucide-react';
 import { PatientModal } from '@/components/PatientModal';
 import { VisitModal } from '@/components/VisitModal';
+
+interface Visit {
+  id: string;
+  date: string;
+  diagnosis: string;
+  currentIllness: string;
+  vitalSigns: {
+    bloodPressure: string;
+    heartRate: string;
+    temperature: string;
+    weight: string;
+    height: string;
+  };
+}
+
+interface Patient {
+  id: string;
+  name: string;
+  lastName: string;
+  birthDate: string;
+  identityNumber: string;
+  gender: string;
+  phone: string;
+  email: string;
+  address: string;
+  visits: Visit[];
+}
 
 // Datos dummy para pacientes
 const DUMMY_PATIENTS = [
@@ -87,24 +110,25 @@ const DUMMY_PATIENTS = [
 ];
 
 export default function PatientsPage() {
-  const { user } = useAuth();
   const [patients, setPatients] = useState(DUMMY_PATIENTS);
   const [searchTerm, setSearchTerm] = useState('');
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   const filteredPatients = patients.filter(patient =>
     `${patient.name} ${patient.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     patient.identityNumber.includes(searchTerm)
   );
 
-  const handleAddPatient = (newPatient: any) => {
+  const handleAddPatient = (newPatient: Omit<Patient, 'id' | 'visits'>) => {
     setPatients([...patients, { ...newPatient, id: Date.now().toString(), visits: [] }]);
     setIsPatientModalOpen(false);
   };
 
-  const handleAddVisit = (visitData: any) => {
+  const handleAddVisit = (visitData: Omit<Visit, 'id'>) => {
+    if (!selectedPatient) return;
+    
     const updatedPatients = patients.map(patient => {
       if (patient.id === selectedPatient.id) {
         return {
