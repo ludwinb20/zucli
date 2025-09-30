@@ -1,19 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+
+interface Service {
+  id: string;
+  name: string;
+  description: string;
+  basePrice: number;
+  category: string;
+  isActive: boolean;
+}
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Settings, Plus, Edit, Trash2, Save, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X } from 'lucide-react';
 
 export default function AdminPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('services');
   const [isEditing, setIsEditing] = useState(false);
-  const [editingService, setEditingService] = useState<any>(null);
+  const [editingService, setEditingService] = useState<Service | null>(null);
   const [newService, setNewService] = useState({
     name: '',
     description: '',
@@ -65,7 +73,7 @@ export default function AdminPage() {
     }
   ]);
 
-  const [priceSchedules, setPriceSchedules] = useState([
+  const [priceSchedules] = useState([
     {
       id: '1',
       serviceId: '2',
@@ -113,7 +121,7 @@ export default function AdminPage() {
     setIsLoading(false);
   };
 
-  const handleEditService = (service: any) => {
+  const handleEditService = (service: Service) => {
     setEditingService(service);
     setIsEditing(true);
   };
@@ -145,7 +153,7 @@ export default function AdminPage() {
     }
   };
 
-  const ServiceCard = ({ service }: { service: any }) => (
+  const ServiceCard = ({ service }: { service: Service }) => (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-3">

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
 
 // GET - Obtener usuario por ID (solo admin)
 export async function GET(
@@ -34,6 +33,7 @@ export async function GET(
     }
 
     // No incluir la contraseña en la respuesta
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userWithoutPassword } = user;
 
     return NextResponse.json(userWithoutPassword);
@@ -134,6 +134,7 @@ export async function PUT(
     });
 
     // No incluir la contraseña en la respuesta
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userWithoutPassword } = updatedUser;
 
     return NextResponse.json(userWithoutPassword);

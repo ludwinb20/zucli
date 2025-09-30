@@ -348,7 +348,7 @@ export default function UsersPage() {
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará permanentemente el
-              usuario "{userToDelete?.name}" y todos sus datos asociados.
+              usuario &quot;{userToDelete?.name}&quot; y todos sus datos asociados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
