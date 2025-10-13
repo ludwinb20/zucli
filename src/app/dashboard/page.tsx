@@ -1,94 +1,62 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, 
-  FileText, 
-  DollarSign, 
-  Calendar,
-  Scan,
-  CreditCard,
   Settings
 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
+
+  // Verificar permisos
+  useEffect(() => {
+    if (user && user.role?.name !== "admin") {
+      router.push("/login");
+    }
+  }, [user, router]);
+
+  // No renderizar si no es admin
+  if (user?.role?.name !== "admin") {
+    return null;
+  }
 
   const stats = [
     {
-      title: 'Pacientes Hoy',
-      value: '24',
+      title: 'Usuarios Activos',
+      value: '4',
       icon: Users,
       color: 'text-[#2E9589]',
       bgColor: 'bg-[#2E9589]/10'
     },
     {
-      title: 'Consultas Pendientes',
-      value: '8',
-      icon: Calendar,
+      title: 'Sistema',
+      value: 'Activo',
+      icon: Settings,
       color: 'text-[#4CAF50]',
       bgColor: 'bg-[#4CAF50]/10'
-    },
-    {
-      title: 'Facturas del Día',
-      value: '15',
-      icon: FileText,
-      color: 'text-[#1E3A8A]',
-      bgColor: 'bg-[#1E3A8A]/10'
-    },
-    {
-      title: 'Ingresos Hoy',
-      value: 'L. 12,450',
-      icon: DollarSign,
-      color: 'text-[#43A047]',
-      bgColor: 'bg-[#43A047]/10'
     }
   ];
 
   const quickActions = [
-    {
-      title: 'Registrar Paciente',
-      description: 'Agregar nuevo paciente al sistema',
-      icon: Users,
-      href: '/patients/register',
-      color: 'hover:bg-[#2E9589]/5 border-[#2E9589]/20'
-    },
-    {
-      title: 'Consulta Externa',
-      description: 'Registrar consulta médica',
-      icon: Calendar,
-      href: '/consultations',
-      color: 'hover:bg-[#4CAF50]/5 border-[#4CAF50]/20'
-    },
-    {
-      title: 'Rayos X',
-      description: 'Programar estudios radiológicos',
-      icon: Scan,
-      href: '/xray',
-      color: 'hover:bg-[#1E3A8A]/5 border-[#1E3A8A]/20'
-    },
-    {
-      title: 'Caja',
-      description: 'Procesar pagos y facturación',
-      icon: CreditCard,
-      href: '/cashier',
-      color: 'hover:bg-[#43A047]/5 border-[#43A047]/20'
-    },
-    {
-      title: 'Facturas',
-      description: 'Ver historial de facturas',
-      icon: FileText,
-      href: '/invoices',
-      color: 'hover:bg-[#2E9589]/5 border-[#2E9589]/20'
-    },
     {
       title: 'Administración',
       description: 'Gestionar servicios y usuarios',
       icon: Settings,
       href: '/admin',
       color: 'hover:bg-[#F5F7FA] border-gray-200'
+    },
+    {
+      title: 'Gestión de Usuarios',
+      description: 'Administrar usuarios del sistema',
+      icon: Users,
+      href: '/admin/users',
+      color: 'hover:bg-[#2E9589]/5 border-[#2E9589]/20'
     }
   ];
 
@@ -106,7 +74,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {stats.map((stat, index) => (
             <Card key={index} className="bg-transparent border-gray-200">
               <CardContent className="p-6">
@@ -133,7 +101,7 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Acciones Rápidas
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {quickActions.map((action, index) => (
               <Link key={index} href={action.href}>
                 <Card className="cursor-pointer transition-colors bg-transparent border-gray-200 hover:bg-gray-50">
@@ -169,10 +137,8 @@ export default function DashboardPage() {
           <CardContent>
             <div className="space-y-4">
               {[
-                { action: 'Nueva consulta registrada', patient: 'María González', time: 'Hace 5 minutos' },
-                { action: 'Factura emitida', patient: 'Juan Pérez', time: 'Hace 12 minutos' },
-                { action: 'Paciente registrado', patient: 'Ana López', time: 'Hace 25 minutos' },
-                { action: 'Rayos X programados', patient: 'Carlos Ruiz', time: 'Hace 1 hora' }
+                { action: 'Sistema iniciado', user: 'Administrador', time: 'Hace 5 minutos' },
+                { action: 'Usuario autenticado', user: user?.name || 'Usuario', time: 'Hace 2 minutos' }
               ].map((item, index) => (
                 <div key={index} className="flex items-center justify-between py-2 border-b last:border-b-0">
                   <div>
@@ -180,7 +146,7 @@ export default function DashboardPage() {
                       {item.action}
                     </p>
                     <p className="text-sm text-gray-600">
-                      Paciente: {item.patient}
+                      Usuario: {item.user}
                     </p>
                   </div>
                   <span className="text-xs text-gray-500">

@@ -19,6 +19,12 @@ export async function GET() {
     const users = await prisma.user.findMany({
       include: {
         role: true,
+        specialty: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc',
@@ -55,7 +61,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { username, email, password, name, roleId, isActive = true } = body;
+    console.log(body);
+    const { username, password, name, roleId, specialtyId, isActive = true } = body;
 
     // Validaciones básicas
     if (!username || !password || !name || !roleId) {
@@ -89,35 +96,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que el email no existe (si se proporciona)
-    if (email) {
-      const existingEmail = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (existingEmail) {
-        return NextResponse.json(
-          { error: 'El email ya está en uso' },
-          { status: 400 }
-        );
-      }
-    }
 
     // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Crear el usuario
     const newUser = await prisma.user.create({
-      data: {
-        username,
-        email: email || null,
-        password: hashedPassword,
-        name,
-        roleId,
-        isActive,
-      },
+        data: {
+          username,
+          password: hashedPassword,
+          name,
+          roleId,
+          specialtyId: specialtyId || null,
+          isActive,
+        },
       include: {
         role: true,
+        specialty: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
     });
 

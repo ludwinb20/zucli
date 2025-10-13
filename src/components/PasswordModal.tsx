@@ -10,20 +10,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { InlineSpinner } from "@/components/ui/spinner";
 import { Key } from "lucide-react";
+import { medicalToasts } from "@/lib/toast";
 
-interface User {
-  id: string;
-  username: string;
-  name: string;
-}
-
-interface PasswordModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  user: User | null;
-}
+import { PasswordModalProps } from "@/types/users";
 
 export function PasswordModal({ isOpen, onClose, user }: PasswordModalProps) {
   const [newPassword, setNewPassword] = useState("");
@@ -81,6 +72,7 @@ export function PasswordModal({ isOpen, onClose, user }: PasswordModalProps) {
       });
 
       if (response.ok) {
+        medicalToasts.saveSuccess(`Contraseña de ${user.name}`);
         setSuccess(true);
         setNewPassword("");
         setConfirmPassword("");
@@ -93,10 +85,12 @@ export function PasswordModal({ isOpen, onClose, user }: PasswordModalProps) {
       } else {
         const error = await response.json();
         setErrors({ general: error.error || "Error al cambiar la contraseña" });
+        medicalToasts.userError('cambiar contraseña');
       }
     } catch (error) {
       console.error("Error changing password:", error);
       setErrors({ general: "Error al cambiar la contraseña" });
+      medicalToasts.networkError();
     } finally {
       setLoading(false);
     }
@@ -190,14 +184,23 @@ export function PasswordModal({ isOpen, onClose, user }: PasswordModalProps) {
               El usuario deberá usar esta nueva contraseña en su próximo inicio de sesión.
             </div>
 
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button type="button" variant="outline" onClick={handleClose}>
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleClose}
+                className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button 
+                type="submit" 
+                disabled={loading}
+                className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+              >
                 {loading ? (
                   <>
-                    <LoadingSpinner />
+                    <InlineSpinner size="sm" />
                     <span className="ml-2">Cambiando...</span>
                   </>
                 ) : (

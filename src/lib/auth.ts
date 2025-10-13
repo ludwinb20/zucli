@@ -1,24 +1,11 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { Role } from '@/types/auth';
-import { Adapter } from 'next-auth/adapters';
-
-interface User {
-  id: string;
-  username: string;
-  name: string;
-  email?: string;
-  role: {
-    id: string;
-    name: string;
-  };
-}
+import { AuthRole } from '@/types/auth';
+import { AuthUser } from '@/types/contexts';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as Adapter,
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -39,6 +26,7 @@ export const authOptions: NextAuthOptions = {
             },
             include: {
               role: true,
+              specialty: true,
             },
           });
 
@@ -61,11 +49,14 @@ export const authOptions: NextAuthOptions = {
             id: user.id,
             username: user.username,
             name: user.name,
-            email: user.email || undefined,
             role: {
               id: user.role.id,
               name: user.role.name,
             },
+            specialty: user.specialty ? {
+              id: user.specialty.id,
+              name: user.specialty.name,
+            } : undefined,
           };
         } catch (error) {
           console.error('Error during authentication:', error);
@@ -81,8 +72,9 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.username = (user as User).username;
-        token.role = (user as User).role;
+        token.username = (user as AuthUser).username;
+        token.role = (user as AuthUser).role;
+        token.specialty = (user as AuthUser).specialty;
       }
       return token;
     },
@@ -90,7 +82,7 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.id as string;
         session.user.username = token.username as string;
-        session.user.role = token.role as Role;
+        session.user.role = token.role as AuthRole;
       }
       return session;
     },

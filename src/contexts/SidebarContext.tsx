@@ -1,12 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-
-interface SidebarContextType {
-  collapsed: boolean;
-  setCollapsed: (collapsed: boolean) => void;
-  toggleCollapsed: () => void;
-}
+import { SidebarContextType } from '@/types/contexts';
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 

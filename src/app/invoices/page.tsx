@@ -1,342 +1,386 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { FileText, Search, Filter, Download, Eye, Calendar, DollarSign } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  FileText,
+  User,
+  Calendar,
+  Building2,
+  Printer,
+  Search,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { generateSimpleReceiptFromDB, generateLegalInvoiceFromDB, printThermalReceipt } from "@/lib/thermal-printer";
 
-export default function InvoicesListPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('');
+// Tipo unificado para mostrar en la lista
+type InvoiceListItem = {
+  id: string;
+  type: 'legal' | 'simple';
+  numero: string;
+  fecha: Date | string;
+  clienteNombre: string;
+  clienteRTN?: string;
+  total: number;
+  detalleGenerico: boolean;
+  patientName: string;
+  patientIdentity: string;
+  raw?: Record<string, unknown>; // Datos completos para reimpresión
+};
 
-  // Datos dummy para facturas
-  const invoices = [
-    {
-      id: 'INV-001',
-      patientName: 'María González',
-      patientId: 'PAT-001',
-      services: ['Consulta Externa'],
-      subtotal: 800,
-      tax: 0,
-      total: 800,
-      rtn: '0801-1990-12345',
-      status: 'paid',
-      paymentMethod: 'Efectivo',
-      createdAt: '2024-09-17',
-      paidAt: '2024-09-17 10:45'
-    },
-    {
-      id: 'INV-002',
-      patientName: 'Juan Pérez',
-      patientId: 'PAT-002',
-      services: ['Rayos X - Tórax'],
-      subtotal: 1000,
-      tax: 0,
-      total: 1000,
-      rtn: null,
-      status: 'paid',
-      paymentMethod: 'Tarjeta',
-      createdAt: '2024-09-17',
-      paidAt: '2024-09-17 11:30'
-    },
-    {
-      id: 'INV-003',
-      patientName: 'Ana López',
-      patientId: 'PAT-003',
-      services: ['Consulta Externa', 'Rayos X - Abdomen'],
-      subtotal: 1700,
-      tax: 0,
-      total: 1700,
-      rtn: '0801-1985-67890',
-      status: 'pending',
-      paymentMethod: null,
-      createdAt: '2024-09-17',
-      paidAt: null
-    },
-    {
-      id: 'INV-004',
-      patientName: 'Carlos Ruiz',
-      patientId: 'PAT-004',
-      services: ['Consulta Externa'],
-      subtotal: 800,
-      tax: 0,
-      total: 800,
-      rtn: '0801-1982-54321',
-      status: 'paid',
-      paymentMethod: 'Efectivo',
-      createdAt: '2024-09-16',
-      paidAt: '2024-09-16 15:20'
-    },
-    {
-      id: 'INV-005',
-      patientName: 'Elena Martínez',
-      patientId: 'PAT-005',
-      services: ['Rayos X - Columna'],
-      subtotal: 1200,
-      tax: 0,
-      total: 1200,
-      rtn: null,
-      status: 'cancelled',
-      paymentMethod: null,
-      createdAt: '2024-09-16',
-      paidAt: null
+export default function InvoicesPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const [invoices, setInvoices] = useState<InvoiceListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Verificar permisos
+  useEffect(() => {
+    if (!authLoading && user) {
+      const allowedRoles = ["caja", "admin"];
+      if (!allowedRoles.includes(user.role.name)) {
+        router.push("/dashboard");
+      }
     }
-  ];
+  }, [user, authLoading, router]);
 
-  const filteredInvoices = invoices.filter(invoice => {
-    const matchesSearch = invoice.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invoice.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-    const matchesDate = !dateFilter || invoice.createdAt === dateFilter;
-    
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+  // Debounce para búsqueda
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(1);
+    }, 500);
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      paid: { color: 'bg-green-100 text-green-800', text: 'Pagada' },
-      pending: { color: 'bg-yellow-100 text-yellow-800', text: 'Pendiente' },
-      cancelled: { color: 'bg-red-100 text-red-800', text: 'Cancelada' }
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig];
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const loadInvoices = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Construir parámetros de búsqueda
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: "50",
+        type: typeFilter,
+      });
+
+      if (searchTerm) {
+        params.append("search", searchTerm);
+      }
+
+      const response = await fetch(`/api/invoices?${params.toString()}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setInvoices(data.invoices || []);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalCount(data.pagination?.totalCount || 0);
+      } else {
+        throw new Error("Error al cargar facturas");
+      }
+
+    } catch (error) {
+      console.error("Error loading invoices:", error);
+      toast({
+        title: "Error",
+        description: "Error al cargar las facturas",
+        variant: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, typeFilter, searchTerm, toast]);
+
+  // Cargar facturas
+  useEffect(() => {
+    loadInvoices();
+  }, [loadInvoices]);
+
+  const handleTypeFilterChange = (value: string) => {
+    setTypeFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handleReprint = async (invoice: InvoiceListItem) => {
+    try {
+      if (!invoice.raw) {
+        throw new Error("No se encontraron los datos completos de la factura");
+      }
+
+      let receiptContent: string;
+
+      if (invoice.type === 'legal') {
+        // Reimprimir Factura Legal desde BD
+        receiptContent = generateLegalInvoiceFromDB(invoice.raw as never);
+      } else {
+        // Reimprimir Recibo Simple desde BD
+        receiptContent = generateSimpleReceiptFromDB(invoice.raw as never);
+      }
+
+      // Imprimir
+      printThermalReceipt(receiptContent);
+
+      toast({
+        title: "Reimprimiendo",
+        description: `${invoice.type === 'legal' ? 'Factura' : 'Recibo'} ${invoice.numero}`,
+        variant: "success",
+      });
+
+    } catch (error) {
+      console.error("Error reimprimiendo:", error);
+      toast({
+        title: "Error",
+        description: "Error al reimprimir la factura",
+        variant: "error",
+      });
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `L ${amount.toFixed(2)}`;
+  };
+
+  const formatDate = (date: Date | string) => {
+    return new Date(date).toLocaleDateString("es-ES", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getTypeBadge = (type: 'legal' | 'simple') => {
+    if (type === 'legal') {
+      return (
+        <Badge className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
+          Factura Legal
+        </Badge>
+      );
+    }
     return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.text}
-      </span>
+      <Badge className="bg-gray-100 text-gray-800 border-gray-200 text-xs">
+        Recibo Simple
+      </Badge>
     );
   };
 
-  const getPaymentMethodIcon = (method: string | null) => {
-    if (!method) return null;
-    return method === 'Efectivo' ? <DollarSign className="h-3 w-3" /> : <FileText className="h-3 w-3" />;
-  };
-
-  const totalAmount = filteredInvoices.reduce((sum, invoice) => sum + invoice.total, 0);
-  const paidAmount = filteredInvoices.filter(invoice => invoice.status === 'paid').reduce((sum, invoice) => sum + invoice.total, 0);
+  if (authLoading) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
-            {/* <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => router.back()}
-              className="mr-4"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Volver
-            </Button> */}
-            <div className="flex items-center">
-              {/* <FileText className="h-6 w-6 text-orange-600 mr-3" />
-              <h1 className="text-xl font-semibold text-gray-900">
-                Historial de Facturas
-              </h1> */}
-            </div>
+    <div className="px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Facturas Emitidas
+            </h2>
+            <p className="text-gray-600">
+              Consulta y reimprimir facturas y recibos
+            </p>
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filtros y Búsqueda */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Filter className="h-5 w-5 mr-2" />
-              Filtros y Búsqueda
+      {/* Invoices List */}
+      <Card className="bg-transparent border-gray-200">
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardTitle className="text-lg font-semibold text-gray-900">
+              Lista de Facturas
             </CardTitle>
-          </CardHeader>
-          
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="search">Buscar</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="search"
-                    placeholder="Paciente o ID de factura..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="status">Estado</Label>
-                <select
-                  id="status"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="all">Todos</option>
-                  <option value="paid">Pagadas</option>
-                  <option value="pending">Pendientes</option>
-                  <option value="cancelled">Canceladas</option>
-                </select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="date">Fecha</Label>
+            <div className="flex items-center space-x-4">
+              {/* Filtro por Tipo */}
+              <Select value={typeFilter} onValueChange={handleTypeFilterChange}>
+                <SelectTrigger className="w-48 border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los tipos</SelectItem>
+                  <SelectItem value="legal">Facturas Legales</SelectItem>
+                  <SelectItem value="simple">Recibos Simples</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Barra de búsqueda */}
+              <div className="flex items-center space-x-2">
+                <Search className="h-4 w-4 text-gray-500" />
                 <Input
-                  id="date"
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
+                  placeholder="Buscar por cliente o número..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-80 border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
                 />
               </div>
-              
-              <div className="space-y-2">
-                <Label>Acciones</Label>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Exportar
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setSearchTerm('');
-                      setStatusFilter('all');
-                      setDateFilter('');
-                    }}
-                  >
-                    Limpiar
-                  </Button>
-                </div>
+
+              {/* Botón de recargar */}
+              <Button
+                onClick={loadInvoices}
+                disabled={loading}
+                variant="outline"
+                size="sm"
+                className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E9589]"></div>
+                <p className="text-gray-600 text-sm">Cargando facturas...</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          ) : invoices.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg font-medium">No se encontraron facturas</p>
+              <p className="text-gray-400 text-sm mt-1">
+                {searchTerm || typeFilter !== "all"
+                  ? "Intenta con otros términos de búsqueda o filtros"
+                  : "No hay facturas emitidas en el sistema"}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4">
+                {invoices.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="flex items-center justify-between p-5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center space-x-4 flex-1">
+                      {/* Icono */}
+                      <div className="w-14 h-14 bg-[#2E9589] text-white rounded-full flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-7 w-7" />
+                      </div>
 
-        {/* Resumen */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Facturas</p>
-                  <p className="text-2xl font-bold text-gray-900">{filteredInvoices.length}</p>
-                </div>
-                <FileText className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Monto Total</p>
-                  <p className="text-2xl font-bold text-gray-900">L. {totalAmount.toLocaleString()}</p>
-                </div>
-                <DollarSign className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Monto Pagado</p>
-                  <p className="text-2xl font-bold text-gray-900">L. {paidAmount.toLocaleString()}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-emerald-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Lista de Facturas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Facturas ({filteredInvoices.length})</CardTitle>
-            <CardDescription>
-              Lista de todas las facturas del sistema
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent>
-            <div className="space-y-4">
-              {filteredInvoices.map((invoice) => (
-                <div key={invoice.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{invoice.id}</h4>
-                      <p className="text-sm text-gray-600">{invoice.patientName}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-gray-900">L. {invoice.total}</p>
-                      {getStatusBadge(invoice.status)}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                    <div>
-                      <p className="text-xs text-gray-500">Servicios</p>
-                      <div className="space-y-1">
-                        {invoice.services.map((service, index) => (
-                          <p key={index} className="text-sm text-gray-700">• {service}</p>
-                        ))}
+                      {/* Información de la factura */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-4 mb-2">
+                          <h3 className="font-semibold text-gray-900 text-lg">
+                            {invoice.clienteNombre}
+                          </h3>
+                          {getTypeBadge(invoice.type)}
+                          {/* Total destacado */}
+                          <div className="ml-auto">
+                            <p className="text-3xl font-bold text-[#2E9589]">
+                              {formatCurrency(invoice.total)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap">
+                          <div className="flex items-center space-x-1">
+                            <FileText className="h-4 w-4" />
+                            <span>{invoice.numero}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-4 w-4" />
+                            <span>{formatDate(invoice.fecha)}</span>
+                          </div>
+                          {invoice.clienteRTN && (
+                            <div className="flex items-center space-x-1">
+                              <Building2 className="h-4 w-4" />
+                              <span>RTN: {invoice.clienteRTN}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-1">
+                            <User className="h-4 w-4" />
+                            <span>Paciente: {invoice.patientName}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div>
-                      <p className="text-xs text-gray-500">Información</p>
-                      <p className="text-sm text-gray-700">Fecha: {invoice.createdAt}</p>
-                      {invoice.paidAt && (
-                        <p className="text-sm text-gray-700">Pagado: {invoice.paidAt}</p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <p className="text-xs text-gray-500">Detalles</p>
-                      {invoice.rtn && (
-                        <p className="text-sm text-gray-700">RTN: {invoice.rtn}</p>
-                      )}
-                      {invoice.paymentMethod && (
-                        <div className="flex items-center text-sm text-gray-700">
-                          {getPaymentMethodIcon(invoice.paymentMethod)}
-                          <span className="ml-1">{invoice.paymentMethod}</span>
-                        </div>
-                      )}
+
+                    {/* Acción */}
+                    <div className="ml-4 flex-shrink-0">
+                      <Button
+                        onClick={() => handleReprint(invoice)}
+                        variant="outline"
+                        size="sm"
+                        className="border-[#2E9589] text-[#2E9589] hover:bg-[#2E9589]/10"
+                      >
+                        <Printer className="h-4 w-4 mr-1" />
+                        Reimprimir
+                      </Button>
                     </div>
                   </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver Detalles
+                ))}
+              </div>
+
+              {/* Paginación */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Mostrando página {currentPage} de {totalPages} ({totalCount} {totalCount === 1 ? "factura" : "facturas"} en total)
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="border-gray-300"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
                     </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      Descargar
+                    <div className="text-sm font-medium text-gray-700 px-4">
+                      {currentPage} / {totalPages}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="border-gray-300"
+                    >
+                      Siguiente
+                      <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-              ))}
-              
-              {filteredInvoices.length === 0 && (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No se encontraron facturas con los filtros aplicados</p>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
+

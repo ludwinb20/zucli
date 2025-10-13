@@ -31,9 +31,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { SpinnerWithText } from "@/components/ui/spinner";
 import { UserModal } from "@/components/UserModal";
 import { PasswordModal } from "@/components/PasswordModal";
+import { medicalToasts } from "@/lib/toast";
 import {
   Users,
   Plus,
@@ -46,21 +47,7 @@ import {
   UserX,
 } from "lucide-react";
 
-interface Role {
-  id: string;
-  name: string;
-}
-
-interface User {
-  id: string;
-  username: string;
-  email: string | null;
-  name: string;
-  isActive: boolean;
-  role: Role;
-  createdAt: string;
-  updatedAt: string;
-}
+import { User } from "@/types/users";
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -113,7 +100,6 @@ export default function UsersPage() {
       (user) =>
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.role.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredUsers(filtered);
@@ -148,16 +134,18 @@ export default function UsersPage() {
       });
 
       if (response.ok) {
+        medicalToasts.userDeleted(userToDelete.name);
         await fetchUsers();
         setIsDeleteDialogOpen(false);
         setUserToDelete(null);
       } else {
         const error = await response.json();
-        alert(error.error || "Error al eliminar usuario");
+        console.error("Error deleting user:", error);
+        medicalToasts.userError('eliminar');
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      alert("Error al eliminar usuario");
+      medicalToasts.networkError();
     }
   };
 
@@ -174,14 +162,17 @@ export default function UsersPage() {
       });
 
       if (response.ok) {
+        const action = user.isActive ? 'desactivado' : 'activado';
+        medicalToasts.userUpdated(`${user.name} (${action})`);
         await fetchUsers();
       } else {
         const error = await response.json();
-        alert(error.error || "Error al cambiar estado del usuario");
+        console.error("Error toggling user status:", error);
+        medicalToasts.userError('cambiar estado');
       }
     } catch (error) {
       console.error("Error toggling user status:", error);
-      alert("Error al cambiar estado del usuario");
+      medicalToasts.networkError();
     }
   };
 
@@ -208,7 +199,7 @@ export default function UsersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
+        <SpinnerWithText size="lg" text="Cargando usuarios..." />
       </div>
     );
   }
@@ -218,80 +209,118 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Users className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Gestión de Usuarios</h1>
+    <div className="px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Gestión de Usuarios
+            </h2>
+            <p className="text-gray-600">
+              Administra los usuarios del sistema y sus permisos
+            </p>
+          </div>
+          <Button 
+            onClick={handleCreateUser} 
+            className="flex items-center space-x-2 bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Nuevo Usuario</span>
+          </Button>
         </div>
-        <Button onClick={handleCreateUser} className="flex items-center space-x-2">
-          <Plus className="h-4 w-4" />
-          <span>Nuevo Usuario</span>
-        </Button>
       </div>
 
-      <Card>
+      {/* Users Table */}
+      <Card className="bg-transparent border-gray-200">
         <CardHeader>
-          <CardTitle>Lista de Usuarios</CardTitle>
-          <div className="flex items-center space-x-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar usuarios..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold text-gray-900">Lista de Usuarios</CardTitle>
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Buscar usuarios por nombre, usuario o rol..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-80 border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Usuario</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Fecha Creación</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+              <TableRow className="border-gray-200">
+                <TableHead className="text-gray-600 font-medium">Usuario</TableHead>
+                <TableHead className="text-gray-600 font-medium">Nombre</TableHead>
+                <TableHead className="text-gray-600 font-medium">Rol</TableHead>
+                <TableHead className="text-gray-600 font-medium">Estado</TableHead>
+                <TableHead className="text-gray-600 font-medium">Fecha Creación</TableHead>
+                <TableHead className="text-right text-gray-600 font-medium">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.username}</TableCell>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.email || "Sin email"}</TableCell>
+                <TableRow key={user.id} className="border-gray-200 hover:bg-gray-50">
+                  <TableCell className="font-medium text-gray-900">{user.username}</TableCell>
+                  <TableCell className="text-gray-700">{user.name}</TableCell>
                   <TableCell>
-                    <Badge variant={getRoleBadgeVariant(user.role.name)}>
-                      {getRoleDisplayName(user.role.name)}
-                    </Badge>
+                    <div className="space-y-1">
+                      <Badge 
+                        variant={getRoleBadgeVariant(user.role.name)}
+                        className="text-xs"
+                      >
+                        {getRoleDisplayName(user.role.name)}
+                      </Badge>
+                      {user.role.name === 'especialista' && user.specialty && (
+                        <div className="text-xs text-gray-600 mt-1">
+                          <span className="font-medium text-[#2E9589]">
+                            {user.specialty.name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.isActive ? "default" : "secondary"}>
+                    <Badge 
+                      variant={user.isActive ? "default" : "secondary"}
+                      className={`text-xs ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}
+                    >
                       {user.isActive ? "Activo" : "Inactivo"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-gray-600">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button 
+                          variant="ghost" 
+                          className="h-8 w-8 p-0 hover:bg-gray-100"
+                        >
+                          <MoreHorizontal className="h-4 w-4 text-gray-500" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem 
+                          onClick={() => handleEditUser(user)}
+                          className="cursor-pointer"
+                        >
                           <Edit className="mr-2 h-4 w-4" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleChangePassword(user)}>
+                        <DropdownMenuItem 
+                          onClick={() => handleChangePassword(user)}
+                          className="cursor-pointer"
+                        >
                           <Key className="mr-2 h-4 w-4" />
                           Cambiar Contraseña
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toggleUserStatus(user)}>
+                        <DropdownMenuItem 
+                          onClick={() => toggleUserStatus(user)}
+                          className="cursor-pointer"
+                        >
                           {user.isActive ? (
                             <>
                               <UserX className="mr-2 h-4 w-4" />
@@ -306,7 +335,7 @@ export default function UsersPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleDeleteUser(user)}
-                          className="text-red-600"
+                          className="text-red-600 cursor-pointer focus:text-red-600"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Eliminar
@@ -319,8 +348,12 @@ export default function UsersPage() {
             </TableBody>
           </Table>
           {filteredUsers.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              No se encontraron usuarios
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg font-medium">No se encontraron usuarios</p>
+              <p className="text-gray-400 text-sm mt-1">
+                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'No hay usuarios registrados en el sistema'}
+              </p>
             </div>
           )}
         </CardContent>
@@ -355,7 +388,7 @@ export default function UsersPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteUser}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 text-white"
             >
               Eliminar
             </AlertDialogAction>

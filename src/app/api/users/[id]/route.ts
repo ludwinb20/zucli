@@ -23,6 +23,12 @@ export async function GET(
       where: { id },
       include: {
         role: true,
+        specialty: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
     });
 
@@ -64,7 +70,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { username, email, name, roleId, isActive } = body;
+    const { username, name, roleId, specialtyId, isActive } = body;
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
@@ -106,32 +112,25 @@ export async function PUT(
       }
     }
 
-    // Verificar que el email no existe en otro usuario (si se proporciona)
-    if (email && email !== existingUser.email) {
-      const userWithEmail = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (userWithEmail) {
-        return NextResponse.json(
-          { error: 'El email ya está en uso' },
-          { status: 400 }
-        );
-      }
-    }
 
     // Actualizar el usuario
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
         ...(username && { username }),
-        ...(email !== undefined && { email: email || null }),
         ...(name && { name }),
         ...(roleId && { roleId }),
+        ...(specialtyId !== undefined && { specialtyId: specialtyId || null }),
         ...(isActive !== undefined && { isActive }),
       },
       include: {
         role: true,
+        specialty: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
     });
 
@@ -185,7 +184,7 @@ export async function DELETE(
       );
     }
 
-    // Eliminar el usuario y sus datos relacionados (accounts, sessions)
+    // Eliminar el usuario
     await prisma.user.delete({
       where: { id },
     });

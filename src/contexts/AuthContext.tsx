@@ -3,25 +3,7 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-
-interface User {
-  id: string;
-  username: string;
-  name: string;
-  email?: string;
-  role: {
-    id: string;
-    name: string;
-  };
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  isLoading: boolean;
-  isAuthenticated: boolean;
-}
+import { AuthContextType, AuthUser } from '@/types/contexts';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -30,11 +12,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const isLoading = status === 'loading';
 
-  const user: User | null = session?.user ? {
+  const user: AuthUser | null = session?.user ? {
     id: session.user.id,
     username: session.user.username,
     name: session.user.name,
-    email: session.user.email,
     role: session.user.role,
   } : null;
 

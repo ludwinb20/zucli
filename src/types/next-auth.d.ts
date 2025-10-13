@@ -4,7 +4,6 @@ declare module 'next-auth' {
       id: string;
       username: string;
       name: string;
-      email?: string;
       role: {
         id: string;
         name: string;
@@ -16,7 +15,6 @@ declare module 'next-auth' {
     id: string;
     username: string;
     name: string;
-    email?: string;
     role: {
       id: string;
       name: string;

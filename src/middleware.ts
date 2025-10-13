@@ -11,6 +11,13 @@ export default withAuth(
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
 
+    // Proteger rutas de administración - solo admin
+    if (pathname.startsWith('/admin') || pathname === '/dashboard') {
+      if (!token || token.role?.name !== 'admin') {
+        return NextResponse.redirect(new URL('/login', req.url));
+      }
+    }
+
     // El middleware se ejecuta después de verificar la autenticación
     return NextResponse.next();
   },

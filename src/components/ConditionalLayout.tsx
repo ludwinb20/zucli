@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { AppNavbar } from '@/components/AppNavbar';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { SpinnerWithText } from '@/components/ui/spinner';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -62,7 +62,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // Mostrar loading mientras se verifica la sesión
   if (status === 'loading') {
-    return <LoadingSpinner />;
+    return (
+      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+        <div className="bg-white p-10 rounded-xl shadow-lg text-center max-w-sm">
+          <SpinnerWithText size="lg" text="Cargando aplicación..." />
+        </div>
+      </div>
+    );
   }
 
   // Si no está autenticado y no está en login, no mostrar nada (se redirigirá)

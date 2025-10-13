@@ -1,303 +1,478 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
-  Users, 
-  Search, 
-  Eye, 
-  UserPlus,
-  Stethoscope
-} from 'lucide-react';
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Search, MoreHorizontal, Edit, Trash2, User, CalendarDays, UserRound, Calendar, ChevronLeft, ChevronRight, Phone, FileText, AlertTriangle } from 'lucide-react';
 import { PatientModal } from '@/components/PatientModal';
-import { VisitModal } from '@/components/VisitModal';
+import { medicalToasts } from '@/lib/toast';
+import { Patient, PaginationInfo } from '@/types';
 
-interface Visit {
-  id: string;
-  date: string;
-  diagnosis: string;
-  currentIllness: string;
-  vitalSigns: {
-    bloodPressure: string;
-    heartRate: string;
-    temperature: string;
-    weight: string;
-    height: string;
-  };
-}
-
-interface Patient {
-  id: string;
-  name: string;
-  lastName: string;
-  birthDate: string;
-  identityNumber: string;
-  gender: string;
-  phone: string;
-  email: string;
-  address: string;
-  visits: Visit[];
-}
-
-// Datos dummy para pacientes
-const DUMMY_PATIENTS = [
-  {
-    id: '1',
-    name: 'María González',
-    lastName: 'López',
-    birthDate: '1985-03-15',
-    identityNumber: '0801-1985-12345',
-    gender: 'Femenino',
-    phone: '9876-5432',
-    email: 'maria.gonzalez@email.com',
-    address: 'Col. Las Flores, Tegucigalpa',
-    visits: [
-      {
-        id: '1',
-        date: '2024-01-15',
-        diagnosis: 'Hipertensión arterial',
-        currentIllness: 'Dolor de cabeza persistente',
-        vitalSigns: {
-          bloodPressure: '140/90',
-          heartRate: '85',
-          temperature: '36.5°C',
-          weight: '65kg',
-          height: '165cm'
-        }
-      }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Juan',
-    lastName: 'Pérez',
-    birthDate: '1978-07-22',
-    identityNumber: '0801-1978-67890',
-    gender: 'Masculino',
-    phone: '8765-4321',
-    email: 'juan.perez@email.com',
-    address: 'Col. Residencial, San Pedro Sula',
-    visits: []
-  },
-  {
-    id: '3',
-    name: 'Ana',
-    lastName: 'Martínez',
-    birthDate: '1992-11-08',
-    identityNumber: '0801-1992-11111',
-    gender: 'Femenino',
-    phone: '7654-3210',
-    email: 'ana.martinez@email.com',
-    address: 'Col. Centro, La Ceiba',
-    visits: [
-      {
-        id: '2',
-        date: '2024-01-10',
-        diagnosis: 'Gripe común',
-        currentIllness: 'Fiebre y malestar general',
-        vitalSigns: {
-          bloodPressure: '120/80',
-          heartRate: '95',
-          temperature: '38.2°C',
-          weight: '58kg',
-          height: '160cm'
-        }
-      }
-    ]
-  }
-];
 
 export default function PatientsPage() {
-  const [patients, setPatients] = useState(DUMMY_PATIENTS);
+  const { } = useAuth();
+  const { } = useRouter();
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
-  const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationInfo, setPaginationInfo] = useState<PaginationInfo | null>(null);
+  const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
 
-  const filteredPatients = patients.filter(patient =>
-    `${patient.name} ${patient.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.identityNumber.includes(searchTerm)
-  );
+  const fetchPatients = useCallback(async (isSearch = false) => {
+    setLoading(true);
+    try {
+      // Si es una búsqueda nueva, volver a la página 1
+      if (isSearch) {
+        setCurrentPage(1);
+      }
+      
+      const page = isSearch ? 1 : currentPage;
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '100',
+        ...(searchTerm && { search: searchTerm }),
+      });
+      
+      const response = await fetch(`/api/patients?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch patients');
+      }
+      
+      const data = await response.json();
+      setPatients(data.patients);
+      setPaginationInfo(data.pagination);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, searchTerm]);
 
-  const handleAddPatient = (newPatient: Omit<Patient, 'id' | 'visits'>) => {
-    setPatients([...patients, { ...newPatient, id: Date.now().toString(), visits: [] }]);
-    setIsPatientModalOpen(false);
+  useEffect(() => {
+    fetchPatients(false); // No es una búsqueda nueva
+  }, [currentPage, fetchPatients]);
+
+  // Debounce search para evitar demasiadas consultas
+  useEffect(() => {
+    if (searchDebounce) {
+      clearTimeout(searchDebounce);
+    }
+    
+    const timeout = setTimeout(() => {
+      fetchPatients(true); // Indicar que es una búsqueda
+    }, 500); // Esperar 500ms después del último keystroke
+    
+    setSearchDebounce(timeout);
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, fetchPatients]);
+
+  const handleCreatePatient = () => {
+    setEditingPatient(null);
+    setIsModalOpen(true);
   };
 
-  const handleAddVisit = (visitData: Omit<Visit, 'id'>) => {
-    if (!selectedPatient) return;
-    
-    const updatedPatients = patients.map(patient => {
-      if (patient.id === selectedPatient.id) {
-        return {
-          ...patient,
-          visits: [...patient.visits, { ...visitData, id: Date.now().toString() }]
-        };
+  const handleEditPatient = (patient: Patient) => {
+    setEditingPatient(patient);
+    setIsModalOpen(true);
+  };
+
+  const handleSavePatient = async () => {
+    await fetchPatients();
+    setIsModalOpen(false);
+  };
+
+  // Funciones de paginación
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const goToNextPage = () => {
+    if (paginationInfo?.hasNextPage) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (paginationInfo?.hasPreviousPage) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleDeletePatient = (patient: Patient) => {
+    setPatientToDelete(patient);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeletePatient = async () => {
+    if (!patientToDelete) return;
+
+    try {
+      const response = await fetch(`/api/patients/${patientToDelete.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        medicalToasts.patientDeleted(`${patientToDelete.firstName} ${patientToDelete.lastName}`);
+        setPatients(patients.filter((p) => p.id !== patientToDelete.id));
+        setIsDeleteDialogOpen(false);
+        setPatientToDelete(null);
+      } else {
+        medicalToasts.patientError('eliminar');
       }
-      return patient;
-    });
-    setPatients(updatedPatients);
-    setIsVisitModalOpen(false);
-    setSelectedPatient(null);
+    } catch (error) {
+      console.error("Error deleting patient:", error);
+      medicalToasts.networkError();
+    }
+  };
+
+  const getGenderBadgeVariant = (gender: string) => {
+    const variants: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
+      Masculino: "default",
+      Femenino: "secondary"
+    };
+    return variants[gender] || "default";
+  };
+
+  const getGenderBadgeStyles = (gender: string) => {
+    if (gender === "Femenino") {
+      return "bg-pink-100 text-pink-800 border-pink-200";
+    }
+    if (gender === "Masculino") {
+      return "bg-blue-100 text-blue-800 border-blue-200";
+    }
+    return "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  const getGenderDisplayName = (gender: string) => {
+    switch (gender.toLowerCase()) {
+      case 'masculino':
+        return 'Masculino';
+      case 'femenino':
+        return 'Femenino';
+      case 'otro':
+        return 'Otro';
+      default:
+        return gender;
+    }
+  };
+
+  const formatBirthDate = (birthDate: string) => {
+    try {
+      console.log('Frontend received birthDate:', birthDate, 'Type:', typeof birthDate);
+      const date = new Date(birthDate + 'T00:00:00'); // Fuerza medianoche local
+      console.log('Parsed date object:', date);
+      
+      // Formatear en timezone de Honduras
+      const result = date.toLocaleDateString('es-HN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'America/Tegucigalpa'
+      });
+      console.log('Frontend formatted result:', result);
+      return result;
+    } catch (error) {
+      console.error('Frontend date formatting error:', error, birthDate);
+      return 'Fecha inválida';
+    }
+  };
+
+  const calculateAge = (birthDate: string) => {
+    try {
+      const date = new Date(birthDate + 'T00:00:00');
+      const today = new Date();
+      
+      let age = today.getFullYear() - date.getFullYear();
+      const monthDiff = today.getMonth() - date.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+        age--;
+      }
+      
+      return Math.max(0, age);
+    } catch {
+      return 0;
+    }
   };
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
         {/* Header Section */}
         <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Gestión de Pacientes
           </h2>
           <p className="text-gray-600">
-            Administra la información de pacientes y sus visitas médicas
-          </p>
+              Registra y administra los pacientes del sistema
+            </p>
+          </div>
+          <Button
+            onClick={handleCreatePatient}
+            className="flex items-center space-x-2 bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Nuevo Paciente</span>
+          </Button>
+        </div>
         </div>
 
-        {/* Search and Actions */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+      {/* Patients List */}
+      <Card className="bg-transparent border-gray-200">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold text-gray-900">Lista de Pacientes</CardTitle>
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-500" />
               <Input
-                placeholder="Buscar por nombre o número de identidad..."
+                placeholder="Buscar pacientes por nombre o número de identidad..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="w-80 border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
               />
             </div>
           </div>
-          <Button
-            onClick={() => setIsPatientModalOpen(true)}
-            className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            Nuevo Paciente
-          </Button>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E9589]"></div>
+                <p className="text-gray-600 text-sm">Cargando pacientes...</p>
+              </div>
+            </div>
+          ) : patients.length === 0 ? (
+            <div className="text-center py-12">
+              <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg font-medium">No se encontraron pacientes</p>
+              <p className="text-gray-400 text-sm mt-1">
+                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'No hay pacientes registrados en el sistema'}
+              </p>
         </div>
-
-        {/* Patients List */}
+          ) : (
+            <>
         <div className="grid gap-4">
-          {filteredPatients.map((patient) => (
-            <Card key={patient.id} className="bg-transparent border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
+                {patients.map((patient) => (
+                <div
+                  key={patient.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                >
                     <div className="flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-[#2E9589]/10 rounded-full flex items-center justify-center">
-                          <Users className="h-6 w-6 text-[#2E9589]" />
-                        </div>
+                    <div className="w-12 h-12 bg-[#2E9589] text-white rounded-full flex items-center justify-center">
+                      <User className="h-6 w-6" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {patient.name} {patient.lastName}
+                      <div className="flex items-center space-x-3 mb-1">
+                        <h3 className="font-medium text-gray-900 text-lg">
+                          {patient.firstName} {patient.lastName}
                         </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">Identidad:</span> {patient.identityNumber}
+                        <Badge
+                          variant={getGenderBadgeVariant(patient.gender)}
+                          className={`text-xs ${getGenderBadgeStyles(patient.gender)}`}
+                        >
+                          {getGenderDisplayName(patient.gender)}
+                        </Badge>
                           </div>
-                          <div>
-                            <span className="font-medium">Teléfono:</span> {patient.phone}
+                      <div className="flex items-center space-x-6 text-sm text-gray-600">
+                        <div className="flex items-center space-x-1">
+                          <CalendarDays className="h-4 w-4" />
+                          <span>Nacido: {formatBirthDate(patient.birthDate)} ({calculateAge(patient.birthDate)} años)</span>
                           </div>
-                          <div>
-                            <span className="font-medium">Edad:</span> {new Date().getFullYear() - new Date(patient.birthDate).getFullYear()} años
+                        <div className="flex items-center space-x-1">
+                          <UserRound className="h-4 w-4" />
+                          <span>ID: {patient.identityNumber}</span>
                           </div>
-                          <div>
-                            <span className="font-medium">Visitas:</span> {patient.visits.length}
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-4 w-4" />
+                          <span>Registrado: {new Date(patient.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        {patient.phone && (
+                          <div className="flex items-center space-x-1">
+                            <Phone className="h-4 w-4" />
+                            <span>Tel: {patient.phone}</span>
+                          </div>
+                        )}
+                        </div>
+                        
+                        {/* Contacto de Emergencia */}
+                        {(patient.emergencyContactName || patient.emergencyContactNumber) && (
+                          <div className="mt-3 pt-3 border-t border-gray-200">
+                            <div className="flex items-center space-x-1 text-sm">
+                              <Phone className="h-4 w-4 text-gray-500" />
+                              <span className="text-gray-600 font-medium">Contacto de Emergencia:</span>
+                              <span className="text-gray-800">
+                                {patient.emergencyContactName}
+                                {patient.emergencyContactNumber && ` - ${patient.emergencyContactNumber}`}
+                                {patient.emergencyContactRelation && ` (${patient.emergencyContactRelation})`}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      {(patient.medicalHistory || patient.allergies) && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="space-y-1 text-sm">
+                            {patient.medicalHistory && (
+                              <div className="flex items-start space-x-1">
+                                <FileText size={16} className="text-gray-500 mt-0.5" />
+                                <span className="text-gray-600 font-medium">Enfermedades base:</span>
+                                <span className="text-gray-800">{patient.medicalHistory}</span>
+                          </div>
+                            )}
+                            {patient.allergies && (
+                              <div className="flex items-start space-x-1">
+                                <AlertTriangle size={16} className="text-red-500 mt-0.5" />
+                                <span className="text-gray-600 font-medium">Alergias:</span>
+                                <span className="text-gray-800">{patient.allergies}</span>
+                          </div>
+                            )}
                           </div>
                         </div>
+                      )}
                       </div>
                     </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        className="h-8 w-8 p-0 hover:bg-gray-200"
+                      >
+                        <MoreHorizontal className="h-4 w-4 text-gray-500" />
+                    </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem 
+                        onClick={() => handleEditPatient(patient)}
+                        className="cursor-pointer"
+                      >
+                        <Edit className="mr-2 h-4 w-4" />
+                        Editar Paciente
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDeletePatient(patient)}
+                        className="text-red-600 cursor-pointer focus:text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Eliminar Paciente
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                        </div>
+                  ))}
+                </div>
+                
+                {/* Controles de Paginación */}
+                {paginationInfo && paginationInfo.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 px-4 py-3 bg-gray-50 border-t border-gray-200">
+                    <div className="text-sm text-gray-600">
+                      Mostrando {((currentPage - 1) * paginationInfo.limit) + 1} - {Math.min(currentPage * paginationInfo.limit, paginationInfo.totalCount)} de {paginationInfo.totalCount} pacientes
                   </div>
+                    
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setSelectedPatient(patient);
-                        setIsVisitModalOpen(true);
-                      }}
-                      className="text-[#2E9589] border-[#2E9589] hover:bg-[#2E9589] hover:text-white"
-                    >
-                      <Stethoscope className="h-4 w-4 mr-2" />
-                      Nueva Visita
+                        onClick={goToPreviousPage}
+                        disabled={!paginationInfo.hasPreviousPage}
+                        className="flex items-center space-x-1"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        <span>Anterior</span>
+                      </Button>
+                      
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(paginationInfo.totalPages, 5) }, (_, i) => {
+                          const pageNum = Math.max(1, Math.min(paginationInfo.totalPages - 4, paginationInfo.currentPage - 2)) + i;
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={pageNum === paginationInfo.currentPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => goToPage(pageNum)}
+                              className="min-w-[40px]"
+                            >
+                              {pageNum}
                     </Button>
+                          );
+                        })}
+                      </div>
+                      
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-gray-600 border-gray-300 hover:bg-gray-50"
+                        onClick={goToNextPage}
+                        disabled={!paginationInfo.hasNextPage}
+                        className="flex items-center space-x-1"
                     >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Ver Detalles
+                        <span>Siguiente</span>
+                        <ChevronRight className="h-4 w-4" />
                     </Button>
-                  </div>
-                </div>
-                
-                {/* Recent Visits */}
-                {patient.visits.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-900 mb-2">Últimas Visitas:</h4>
-                    <div className="space-y-2">
-                      {patient.visits.slice(0, 2).map((visit) => (
-                        <div key={visit.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{visit.diagnosis}</p>
-                            <p className="text-xs text-gray-600">{visit.currentIllness}</p>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {new Date(visit.date).toLocaleDateString()}
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredPatients.length === 0 && (
-          <Card className="bg-transparent border-gray-200">
-            <CardContent className="p-8 text-center">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No se encontraron pacientes
-              </h3>
-              <p className="text-gray-600 mb-4">
-                {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Comienza agregando tu primer paciente'}
-              </p>
-              {!searchTerm && (
-                <Button
-                  onClick={() => setIsPatientModalOpen(true)}
-                  className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Agregar Paciente
-                </Button>
+              </>
               )}
             </CardContent>
           </Card>
-        )}
 
-      {/* Modals */}
       <PatientModal
-        isOpen={isPatientModalOpen}
-        onClose={() => setIsPatientModalOpen(false)}
-        onSave={handleAddPatient}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSavePatient}
+        patient={editingPatient}
       />
-      
-      <VisitModal
-        isOpen={isVisitModalOpen}
-        onClose={() => {
-          setIsVisitModalOpen(false);
-          setSelectedPatient(null);
-        }}
-        onSave={handleAddVisit}
-        patient={selectedPatient}
-      />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente al paciente{' '}
+              <strong>{patientToDelete?.firstName} {patientToDelete?.lastName}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeletePatient}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

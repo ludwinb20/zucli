@@ -5,119 +5,23 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSidebar } from "@/contexts/SidebarContext";
 import {
-  Home,
-  Users,
-  FileText,
-  Scan,
-  CreditCard,
-  Bed,
-  Zap,
-  Settings,
-  LogOut,
   ArrowLeft,
   Dot,
 } from "lucide-react";
 import "@/styles/sidebar.css";
 import Image from "next/image";
+import { navigationItems } from "@/config/navigation";
 
 export function AppSidebar() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const { collapsed, toggleCollapsed } = useSidebar();
 
-  const navigationItems = [
-    {
-      name: "Dashboard",
-      href: "/dashboard",
-      icon: <Home size={20} />,
-      roles: ["especialista", "recepcion", "caja", "admin"],
-    },
-    {
-      name: "Pacientes",
-      icon: <Users size={20} />,
-      roles: ["especialista", "recepcion", "admin"],
-      subItems: [
-        {
-          name: "Lista de Pacientes",
-          href: "/patients",
-          roles: ["especialista", "recepcion", "admin"],
-        },
-        {
-          name: "Registrar Paciente",
-          href: "/patients/register",
-          roles: ["recepcion", "admin"],
-        },
-      ],
-    },
-    {
-      name: "Consultas",
-      href: "/consultations",
-      icon: <FileText size={20} />,
-      roles: ["especialista", "recepcion"],
-    },
-    {
-      name: "Hospitalización",
-      href: "/hospitalization",
-      icon: <Bed size={20} />,
-      roles: ["especialista", "recepcion", "admin"],
-    },
-    {
-      name: "Cirugía",
-      href: "/surgery",
-      icon: <Zap size={20} />,
-      roles: ["especialista", "recepcion", "admin"],
-    },
-    {
-      name: "Rayos X",
-      href: "/xray",
-      icon: <Scan size={20} />,
-      roles: ["recepcion", "admin"],
-    },
-    {
-      name: "Facturación",
-      icon: <CreditCard size={20} />,
-      roles: ["caja", "admin"],
-      subItems: [
-        {
-          name: "Caja",
-          href: "/cashier",
-          roles: ["caja", "admin"],
-        },
-        {
-          name: "Historial de Facturas",
-          href: "/invoices",
-          roles: ["caja", "admin"],
-        },
-      ],
-    },
-    {
-      name: "Administración",
-      icon: <Settings size={20} />,
-      roles: ["admin"],
-      subItems: [
-        {
-          name: "Panel General",
-          href: "/admin",
-          roles: ["admin"],
-        },
-        {
-          name: "Gestión de Usuarios",
-          href: "/admin/users",
-          roles: ["admin"],
-        },
-      ],
-    },
-  ];
 
   const filteredItems = navigationItems.filter(
     (item) => user?.role?.name && item.roles.includes(user.role.name)
   );
-
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
 
   return (
     <Sidebar
@@ -341,7 +245,7 @@ export function AppSidebar() {
                 key={item.name}
                 icon={item.icon}
                 active={isActive}
-                onClick={() => router.push(item.href)}
+                onClick={() => item.href && router.push(item.href)}
                 onMouseEnter={(e) => {
                   if (!isActive) {
                     e.currentTarget.style.backgroundColor =
@@ -373,50 +277,6 @@ export function AppSidebar() {
               </MenuItem>
             );
           })}
-        </Menu>
-      </div>
-
-      {/* Footer */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          width: collapsed ? "80px" : "250px",
-          backgroundColor: "#2E9589",
-          borderTop: "1px solid rgba(255,255,255,0.1)",
-          transition: "width 0.3s ease",
-          padding: "5px",
-        }}
-      >
-        <Menu>
-          <MenuItem
-            icon={<LogOut size={20} />}
-            onClick={handleLogout}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor =
-                "rgba(255, 255, 255, 0.1)";
-              e.currentTarget.style.transform = "scale(1.05)";
-              e.currentTarget.style.color = "#ff4444";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.transform = "none";
-              e.currentTarget.style.color = "white";
-            }}
-            style={{
-              color: "white",
-              paddingRight: "10px",
-              borderRadius: "8px",
-              justifyContent: collapsed ? "center" : "flex-start",
-              textAlign: collapsed ? "center" : "left",
-              transition: "all 0.2s ease",
-              cursor: "pointer",
-            }}
-          >
-            {!collapsed && "Cerrar Sesión"}
-          </MenuItem>
         </Menu>
       </div>
     </Sidebar>

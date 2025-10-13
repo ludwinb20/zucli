@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { ChevronDown, User, LogOut, Settings } from 'lucide-react';
@@ -9,11 +9,29 @@ export function AppNavbar() {
   const { user, logout } = useAuth();
   const { collapsed } = useSidebar();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
     logout();
     setDropdownOpen(false);
   };
+
+  // Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownOpen]);
 
   const getRoleDisplayName = (role: string) => {
     const roleNames: { [key: string]: string } = {
@@ -44,10 +62,9 @@ export function AppNavbar() {
       }}
     >
       {/* Dropdown del usuario */}
-      <div style={{ position: 'relative' }}>
+      <div ref={dropdownRef} style={{ position: 'relative' }}>
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
-          onBlur={() => setTimeout(() => setDropdownOpen(false), 150)}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -108,7 +125,7 @@ export function AppNavbar() {
                 {user?.name || 'Usuario'}
               </div>
               <div style={{ fontSize: '12px', color: '#666' }}>
-                {user?.email || 'Sin email'}
+                {user?.name || 'Usuario'}
               </div>
               <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
                 {user?.role?.name ? getRoleDisplayName(user.role.name) : 'Sin rol'}
@@ -118,7 +135,8 @@ export function AppNavbar() {
             {/* Opciones del menú */}
             <div style={{ padding: '8px 0' }}>
               <button
-                onClick={() => {
+                onMouseDown={(e) => {
+                  e.preventDefault();
                   // Aquí puedes agregar lógica para configuración
                   setDropdownOpen(false);
                 }}
@@ -148,7 +166,10 @@ export function AppNavbar() {
               </button>
 
               <button
-                onClick={handleLogout}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleLogout();
+                }}
                 style={{
                   width: '100%',
                   display: 'flex',
