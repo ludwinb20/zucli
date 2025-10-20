@@ -34,6 +34,8 @@ import {
   Calendar,
   Hash,
   ClipboardList,
+  Bed,
+  DoorOpen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { InlineSpinner } from "@/components/ui/spinner";
@@ -102,6 +104,7 @@ interface ConsultaEspecialidad {
 interface ServiceItem {
   id: string;
   name: string;
+  type: string;
   basePrice: number;
   isActive: boolean;
   variants?: Array<{
@@ -125,12 +128,20 @@ export default function AdminPanelPage() {
   const [rangeLoading, setRangeLoading] = useState(true);
   const [consultaEspecialidades, setConsultaEspecialidades] = useState<ConsultaEspecialidad[]>([]);
   const [prices, setPrices] = useState<ServiceItem[]>([]);
+  const [radiologyTagId, setRadiologyTagId] = useState<string>("");
+  const [rooms, setRooms] = useState<Array<{ id: string; number: string; status: string }>>([]);
+  const [salaDoctors, setSalaDoctors] = useState<Array<{ id: string; name: string }>>([]);
+  const [hospitalizationDailyItemId, setHospitalizationDailyItemId] = useState<string>("");
 
   // Modales
   const [isSpecialtyModalOpen, setIsSpecialtyModalOpen] = useState(false);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [isConsultaModalOpen, setIsConsultaModalOpen] = useState(false);
+  const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+  const [isSalaDoctorModalOpen, setIsSalaDoctorModalOpen] = useState(false);
   const [selectedSpecialtyForConsulta, setSelectedSpecialtyForConsulta] = useState<string>("");
+  const [selectedRoom, setSelectedRoom] = useState<{ id: string; number: string; status: string } | null>(null);
+  const [selectedSalaDoctor, setSelectedSalaDoctor] = useState<{ id: string; name: string } | null>(null);
   
   // Diálogos de confirmación
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -227,6 +238,34 @@ export default function AdminPanelPage() {
 
       // Cargar rango de facturación
       await loadInvoiceRange();
+
+      // Cargar configuración de radiología
+      const configRes = await fetch("/api/config?key=radiology");
+      if (configRes.ok) {
+        const data = await configRes.json();
+        setRadiologyTagId(data.value?.radiologyTagId || "");
+      }
+
+      // Cargar habitaciones
+      const roomsRes = await fetch("/api/rooms");
+      if (roomsRes.ok) {
+        const data = await roomsRes.json();
+        setRooms(data || []);
+      }
+
+      // Cargar doctores de sala
+      const salaDoctorsRes = await fetch("/api/sala-doctors");
+      if (salaDoctorsRes.ok) {
+        const data = await salaDoctorsRes.json();
+        setSalaDoctors(data || []);
+      }
+
+      // Cargar configuración de item diario de hospitalización
+      const hospConfigRes = await fetch("/api/config?key=hospitalization_daily_rate");
+      if (hospConfigRes.ok) {
+        const data = await hospConfigRes.json();
+        setHospitalizationDailyItemId(data.value?.itemId || "");
+      }
     } catch (error) {
       console.error("Error loading data:", error);
       toast({
@@ -478,6 +517,213 @@ export default function AdminPanelPage() {
       toast({
         title: "Error",
         description: "Error al eliminar el tag",
+        variant: "error",
+      });
+    }
+  };
+
+  // ============================================
+  // HABITACIONES
+  // ============================================
+
+  const [roomForm, setRoomForm] = useState({ id: "", number: "", status: "available" });
+
+  const handleOpenRoomModal = (room?: { id: string; number: string; status: string }) => {
+    if (room) {
+      setRoomForm(room);
+      setSelectedRoom(room);
+    } else {
+      setRoomForm({ id: "", number: "", status: "available" });
+      setSelectedRoom(null);
+    }
+    setIsRoomModalOpen(true);
+  };
+
+  const handleSaveRoom = async () => {
+    try {
+      if (!roomForm.number.trim()) {
+        toast({
+          title: "Error",
+          description: "El número de habitación es requerido",
+          variant: "error",
+        });
+        return;
+      }
+
+      setSaving(true);
+
+      const url = roomForm.id ? `/api/rooms/${roomForm.id}` : "/api/rooms";
+      const method = roomForm.id ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          number: roomForm.number.trim(),
+          status: roomForm.status,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al guardar");
+      }
+
+      toast({
+        title: "Éxito",
+        description: `Habitación ${roomForm.id ? "actualizada" : "creada"} exitosamente`,
+        variant: "success",
+      });
+
+      setIsRoomModalOpen(false);
+      loadData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al guardar la habitación";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteRoom = (id: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Eliminar Habitación",
+      description: "¿Estás seguro de eliminar esta habitación? Esta acción no se puede deshacer.",
+      onConfirm: () => deleteRoom(id),
+    });
+  };
+
+  const deleteRoom = async (id: string) => {
+    try {
+      const response = await fetch(`/api/rooms/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al eliminar");
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Habitación eliminada exitosamente",
+        variant: "success",
+      });
+
+      loadData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al eliminar la habitación";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "error",
+      });
+    }
+  };
+
+  // ============================================
+  // DOCTORES DE SALA
+  // ============================================
+
+  const [salaDoctorForm, setSalaDoctorForm] = useState({ id: "", name: "" });
+
+  const handleOpenSalaDoctorModal = (doctor?: { id: string; name: string }) => {
+    if (doctor) {
+      setSalaDoctorForm(doctor);
+      setSelectedSalaDoctor(doctor);
+    } else {
+      setSalaDoctorForm({ id: "", name: "" });
+      setSelectedSalaDoctor(null);
+    }
+    setIsSalaDoctorModalOpen(true);
+  };
+
+  const handleSaveSalaDoctor = async () => {
+    try {
+      if (!salaDoctorForm.name.trim()) {
+        toast({
+          title: "Error",
+          description: "El nombre del doctor es requerido",
+          variant: "error",
+        });
+        return;
+      }
+
+      setSaving(true);
+
+      const url = salaDoctorForm.id ? `/api/sala-doctors/${salaDoctorForm.id}` : "/api/sala-doctors";
+      const method = salaDoctorForm.id ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: salaDoctorForm.name.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al guardar");
+      }
+
+      toast({
+        title: "Éxito",
+        description: `Doctor ${salaDoctorForm.id ? "actualizado" : "creado"} exitosamente`,
+        variant: "success",
+      });
+
+      setIsSalaDoctorModalOpen(false);
+      loadData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al guardar el doctor";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSalaDoctor = (id: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Eliminar Doctor de Sala",
+      description: "¿Estás seguro de eliminar este doctor? Esta acción no se puede deshacer.",
+      onConfirm: () => deleteSalaDoctor(id),
+    });
+  };
+
+  const deleteSalaDoctor = async (id: string) => {
+    try {
+      const response = await fetch(`/api/sala-doctors/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Error al eliminar");
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Doctor eliminado exitosamente",
+        variant: "success",
+      });
+
+      loadData();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Error al eliminar el doctor";
+      toast({
+        title: "Error",
+        description: errorMessage,
         variant: "error",
       });
     }
@@ -809,6 +1055,132 @@ export default function AdminPanelPage() {
         </CardContent>
       </Card>
 
+      {/* SECCIÓN DE CONFIGURACIÓN */}
+      <Card className="mb-6 bg-white border-gray-200">
+        <CardHeader className="border-b border-gray-200">
+          <div className="flex items-center space-x-2">
+            <Settings className="h-5 w-5 text-[#2E9589]" />
+            <CardTitle className="text-lg font-semibold text-gray-900">
+              Configuración del Sistema
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="radiologyTag" className="text-sm font-medium text-gray-700">
+                Tag de Rayos X / Radiología
+              </Label>
+              <p className="text-xs text-gray-500 mb-2">
+                Selecciona el tag que se usará para filtrar los servicios de radiología en el módulo de pagos
+              </p>
+              <div className="flex gap-2">
+                <select
+                  id="radiologyTag"
+                  value={radiologyTagId}
+                  onChange={(e) => setRadiologyTagId(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E9589]"
+                >
+                  <option value="">Sin configurar</option>
+                  {tags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/config", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: "radiology",
+                          value: { radiologyTagId }
+                        }),
+                      });
+
+                      if (!response.ok) throw new Error();
+
+                      toast({
+                        title: "Configuración guardada",
+                        description: "El tag de radiología se ha configurado correctamente",
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "No se pudo guardar la configuración",
+                        variant: "error",
+                      });
+                    }
+                  }}
+                  className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar
+                </Button>
+              </div>
+            </div>
+
+            {/* Configuración de Hospitalización */}
+            <div className="pt-4 border-t border-gray-200">
+              <Label htmlFor="hospitalizationDailyItem" className="text-sm font-medium text-gray-700">
+                Item de Cobro Diario para Hospitalización
+              </Label>
+              <p className="text-xs text-gray-500 mb-2">
+                Selecciona el servicio que se cobrará por cada día de estancia hospitalaria
+              </p>
+              <div className="flex gap-2">
+                <select
+                  id="hospitalizationDailyItem"
+                  value={hospitalizationDailyItemId}
+                  onChange={(e) => setHospitalizationDailyItemId(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E9589]"
+                >
+                  <option value="">Sin configurar</option>
+                  {prices.filter(p => p.type === 'servicio' && p.isActive).map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} - L{item.basePrice.toFixed(2)}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch("/api/config", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: "hospitalization_daily_rate",
+                          value: { itemId: hospitalizationDailyItemId }
+                        }),
+                      });
+
+                      if (!response.ok) throw new Error();
+
+                      toast({
+                        title: "Configuración guardada",
+                        description: "El item de hospitalización se ha configurado correctamente",
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "No se pudo guardar la configuración",
+                        variant: "error",
+                      });
+                    }
+                  }}
+                  className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ESPECIALIDADES */}
         <Card className="bg-transparent border-gray-200">
@@ -976,6 +1348,143 @@ export default function AdminPanelPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* HABITACIONES */}
+        <Card className="bg-transparent border-gray-200">
+          <CardHeader className="border-b border-gray-200 bg-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Bed className="h-5 w-5 text-[#2E9589]" />
+                <CardTitle className="text-lg font-semibold text-gray-900">
+                  Habitaciones ({rooms.length})
+                </CardTitle>
+              </div>
+              <Button
+                onClick={() => handleOpenRoomModal()}
+                size="sm"
+                className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+              >
+                <Plus size={16} className="mr-1" />
+                Agregar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="space-y-2">
+              {rooms.map((room) => (
+                <div
+                  key={room.id}
+                  className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className={`p-2 rounded-lg ${room.status === 'available' ? 'bg-green-100' : 'bg-red-100'}`}>
+                      <DoorOpen className={`h-4 w-4 ${room.status === 'available' ? 'text-green-600' : 'text-red-600'}`} />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Habitación {room.number}</h3>
+                      <p className="text-sm text-gray-600 capitalize">
+                        {room.status === 'available' ? 'Disponible' : 'Ocupada'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onClick={() => handleOpenRoomModal(room)}
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-300"
+                    >
+                      <Edit size={14} />
+                    </Button>
+                    {room.status === 'available' && (
+                      <Button
+                        onClick={() => handleDeleteRoom(room.id)}
+                        variant="outline"
+                        size="sm"
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {rooms.length === 0 && (
+                <div className="text-center py-12">
+                  <Bed size={48} className="text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No hay habitaciones registradas</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* DOCTORES DE SALA */}
+        <Card className="bg-transparent border-gray-200">
+          <CardHeader className="border-b border-gray-200 bg-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Stethoscope className="h-5 w-5 text-[#2E9589]" />
+                <CardTitle className="text-lg font-semibold text-gray-900">
+                  Doctores de Sala ({salaDoctors.length})
+                </CardTitle>
+              </div>
+              <Button
+                onClick={() => handleOpenSalaDoctorModal()}
+                size="sm"
+                className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+              >
+                <Plus size={16} className="mr-1" />
+                Agregar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="space-y-2">
+              {salaDoctors.map((doctor) => (
+                <div
+                  key={doctor.id}
+                  className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="p-2 rounded-lg bg-blue-100">
+                      <Stethoscope className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">{doctor.name}</h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onClick={() => handleOpenSalaDoctorModal(doctor)}
+                      variant="outline"
+                      size="sm"
+                      className="border-gray-300"
+                    >
+                      <Edit size={14} />
+                    </Button>
+                    <Button
+                      onClick={() => handleDeleteSalaDoctor(doctor.id)}
+                      variant="outline"
+                      size="sm"
+                      className="border-red-300 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              {salaDoctors.length === 0 && (
+                <div className="text-center py-12">
+                  <Stethoscope size={48} className="text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No hay doctores de sala registrados</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* MODAL DE ESPECIALIDAD */}
@@ -1055,7 +1564,7 @@ export default function AdminPanelPage() {
             <Button
               onClick={handleSaveSpecialty}
               disabled={saving}
-              className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+              className="text-white bg-[#2E9589] hover:bg-[#2E9589]/90"
             >
               {saving ? (
                 <InlineSpinner size="sm" className="mr-2" />
@@ -1112,6 +1621,118 @@ export default function AdminPanelPage() {
             </Button>
             <Button
               onClick={handleSaveTag}
+              disabled={saving}
+              className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+            >
+              {saving ? (
+                <InlineSpinner size="sm" className="mr-2" />
+              ) : (
+                <Save size={16} className="mr-1" />
+              )}
+              Guardar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE HABITACIÓN */}
+      <Dialog open={isRoomModalOpen} onOpenChange={setIsRoomModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{roomForm.id ? "Editar" : "Nueva"} Habitación</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="room-number">Número de Habitación *</Label>
+              <Input
+                id="room-number"
+                value={roomForm.number}
+                onChange={(e) =>
+                  setRoomForm({ ...roomForm, number: e.target.value })
+                }
+                placeholder="Ej: 101, A1, Sala 1"
+              />
+            </div>
+
+            {roomForm.id && roomForm.status === 'available' && (
+              <div className="space-y-2">
+                <Label htmlFor="room-status">Estado</Label>
+                <select
+                  id="room-status"
+                  value={roomForm.status}
+                  onChange={(e) =>
+                    setRoomForm({ ...roomForm, status: e.target.value })
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E9589]"
+                >
+                  <option value="available">Disponible</option>
+                  <option value="occupied">Ocupada</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button
+              onClick={() => setIsRoomModalOpen(false)}
+              variant="outline"
+              disabled={saving}
+            >
+              <X size={16} className="mr-1" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveRoom}
+              disabled={saving}
+              className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+            >
+              {saving ? (
+                <InlineSpinner size="sm" className="mr-2" />
+              ) : (
+                <Save size={16} className="mr-1" />
+              )}
+              Guardar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE DOCTOR DE SALA */}
+      <Dialog open={isSalaDoctorModalOpen} onOpenChange={setIsSalaDoctorModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{salaDoctorForm.id ? "Editar" : "Nuevo"} Doctor de Sala</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="doctor-name">Nombre Completo *</Label>
+              <Input
+                id="doctor-name"
+                value={salaDoctorForm.name}
+                onChange={(e) =>
+                  setSalaDoctorForm({ ...salaDoctorForm, name: e.target.value })
+                }
+                placeholder="Ej: Dr. Juan Pérez"
+              />
+              <p className="text-xs text-gray-500">
+                Estos doctores no tendrán usuario en el sistema
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button
+              onClick={() => setIsSalaDoctorModalOpen(false)}
+              variant="outline"
+              disabled={saving}
+            >
+              <X size={16} className="mr-1" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveSalaDoctor}
               disabled={saving}
               className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
             >

@@ -68,6 +68,7 @@ export interface CountRawResult {
 
 // Tipos para tags y specialties en sorting
 export interface TagForSorting {
+  id: string;
   name: string;
 }
 

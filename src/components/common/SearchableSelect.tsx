@@ -1,11 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Search, Check, ChevronDown } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SearchableSelectOption, SearchableSelectProps } from '@/types/ui';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type { SearchableSelectOption };
 
@@ -24,19 +31,9 @@ export function SearchableSelect({
   onAddNew,
   addNewLabel = "+ Agregar nuevo"
 }: SearchableSelectProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredOptions, setFilteredOptions] = useState<SearchableSelectOption[]>(options);
   const [loading, setLoading] = useState(false);
-  const [selectedOption, setSelectedOption] = useState<SearchableSelectOption | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-
-  // Encontrar la opción seleccionada
-  useEffect(() => {
-    const option = [...options, ...filteredOptions].find(opt => opt.value === value);
-    setSelectedOption(option || null);
-  }, [value, options, filteredOptions]);
 
   // Filtrar opciones locales
   useEffect(() => {
@@ -53,31 +50,17 @@ export function SearchableSelect({
     }
   }, [searchTerm, options]);
 
-  // Buscar en servidor
+  // Búsqueda remota
   useEffect(() => {
-    if (onSearch && searchTerm.trim().length >= 2) {
+    if (onSearch && searchTerm.length >= 2) {
       const timeoutId = setTimeout(async () => {
+        setLoading(true);
         try {
-          setLoading(true);
-          const results = await onSearch(searchTerm.trim());
-          const localFiltered = options.filter(option =>
-            option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (option.description && option.description.toLowerCase().includes(searchTerm.toLowerCase()))
-          );
-          const combinedResults = [...localFiltered];
-          results.forEach(serverResult => {
-            if (!combinedResults.some(local => local.value === serverResult.value)) {
-              combinedResults.push(serverResult);
-            }
-          });
-          setFilteredOptions(combinedResults);
+          const results = await onSearch(searchTerm);
+          setFilteredOptions(results);
         } catch (error) {
-          console.error('Error searching:', error);
-          const localFiltered = options.filter(option =>
-            option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (option.description && option.description.toLowerCase().includes(searchTerm.toLowerCase()))
-          );
-          setFilteredOptions(localFiltered);
+          console.error('Error en búsqueda:', error);
+          setFilteredOptions([]);
         } finally {
           setLoading(false);
         }
@@ -85,167 +68,93 @@ export function SearchableSelect({
 
       return () => clearTimeout(timeoutId);
     }
-  }, [searchTerm, onSearch, options]);
+  }, [searchTerm, onSearch]);
 
-  const handleSelect = (optionValue: string) => {
-    onChange(optionValue);
-    setIsOpen(false);
-    setSearchTerm('');
+  const handleValueChange = (newValue: string) => {
+    onChange(newValue);
   };
 
-  const handleToggle = () => {
-    if (!disabled) {
-      setIsOpen(!isOpen);
-      if (!isOpen && searchRef.current) {
-        setTimeout(() => searchRef.current?.focus(), 100);
-      }
-    }
-  };
-
-  // Manejar click fuera del componente
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-        setSearchTerm('');
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // Encontrar la opción seleccionada para mostrar solo el nombre
+  const selectedOption = [...options, ...filteredOptions].find(opt => opt.value === value);
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={cn("space-y-2", className)}>
       {label && (
         <Label className="text-sm font-medium text-gray-700">
           {label}
         </Label>
       )}
       
-      <div ref={containerRef} className="relative">
-        {/* Trigger personalizado */}
-        <button
-          type="button"
-          onClick={handleToggle}
-          disabled={disabled}
-          className={cn(
-            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-            "border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]",
-            error && "border-red-500",
-            selectedOption && "border-green-300 bg-green-50/50"
-          )}
-        >
-          <div className="flex items-center space-x-2">
-            {selectedOption && (
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            )}
-            <span className={cn(!selectedOption && "text-muted-foreground")}>
-              {selectedOption ? selectedOption.label : placeholder}
-            </span>
+      <Select value={value} onValueChange={handleValueChange} disabled={disabled}>
+        <SelectTrigger className={cn(
+          "w-full",
+          error && "border-red-300 focus:ring-red-500 focus:border-red-500"
+        )}>
+          <SelectValue placeholder={placeholder}>
+            {selectedOption ? selectedOption.label : placeholder}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent className="max-h-[300px]">
+          {/* Campo de búsqueda */}
+          <div className="p-2 border-b sticky top-0 bg-white z-10">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-3 text-gray-500" />
+              <Input
+                placeholder={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
           </div>
-          <ChevronDown className="h-4 w-4 opacity-50" />
-        </button>
 
-        {/* Dropdown personalizado */}
-        {isOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg min-w-[400px]">
-            {/* Campo de búsqueda */}
-            <div className="p-2 border-b">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-3 text-gray-500" />
-                <Input
-                  ref={searchRef}
-                  placeholder={searchPlaceholder}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
-                />
-              </div>
+          {/* Lista de opciones */}
+          {loading ? (
+            <div className="p-4 text-center text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#2E9589] mx-auto mb-2"></div>
+              Buscando...
             </div>
-            
-            {/* Lista de opciones */}
-            <div className="max-h-60 overflow-y-auto">
-              {loading ? (
-                <div className="p-4 text-center text-gray-500">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#2E9589] mx-auto mb-2"></div>
-                  Buscando...
+          ) : filteredOptions.length === 0 ? (
+            <div className="p-4 text-center text-gray-500">
+              {onSearch && searchTerm.length < 2 
+                ? 'Escribe al menos 2 caracteres para buscar'
+                : emptyMessage
+              }
+            </div>
+          ) : (
+            filteredOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                <div className="flex flex-col">
+                  <span className="font-medium">{option.label}</span>
+                  {option.description && (
+                    <span className="text-sm text-gray-600">{option.description}</span>
+                  )}
                 </div>
-              ) : filteredOptions.length === 0 ? (
-                <>
-                  <div className="p-4 text-center text-gray-500">
-                    {onSearch && searchTerm.length < 2 
-                      ? 'Escribe al menos 2 caracteres para buscar'
-                      : emptyMessage
-                    }
-                  </div>
-                  
-                  {/* Opción para agregar nuevo cuando no hay resultados */}
-                  {onAddNew && searchTerm.length >= 2 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onAddNew();
-                        setIsOpen(false);
-                        setSearchTerm('');
-                      }}
-                      className="w-full flex items-center justify-center p-3 hover:bg-[#2E9589]/10 cursor-pointer border-t border-gray-200 text-[#2E9589] font-medium"
-                    >
-                      <span className="text-sm">+ Agregar &quot;{searchTerm}&quot;</span>
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  {filteredOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleSelect(option.value)}
-                      className={cn(
-                        "w-full flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 text-left",
-                        value === option.value && "bg-[#2E9589]/10"
-                      )}
-                    >
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">
-                          {option.label}
-                        </div>
-                        {option.description && (
-                          <div className="text-sm text-gray-600">
-                            {option.description}
-                          </div>
-                        )}
-                      </div>
-                      {value === option.value && (
-                        <Check size={16} className="text-[#2E9589]" />
-                      )}
-                    </button>
-                  ))}
-                  
-                  {/* Opción para agregar nuevo */}
-                  {onAddNew && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onAddNew();
-                        setIsOpen(false);
-                        setSearchTerm('');
-                      }}
-                      className="w-full flex items-center justify-center p-3 hover:bg-[#2E9589]/10 cursor-pointer border-t border-gray-200 text-[#2E9589] font-medium"
-                    >
-                      <span className="text-sm">{addNewLabel}</span>
-                    </button>
-                  )}
-                </>
-              )}
+              </SelectItem>
+            ))
+          )}
+
+          {/* Opción para agregar nuevo */}
+          {onAddNew && (
+            <div className="border-t">
+              <button
+                type="button"
+                onClick={() => {
+                  onAddNew();
+                  setSearchTerm('');
+                }}
+                className="w-full flex items-center justify-center p-3 hover:bg-[#2E9589]/10 cursor-pointer text-[#2E9589] font-medium text-sm transition-colors"
+              >
+                {addNewLabel}
+              </button>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </SelectContent>
+      </Select>
 
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-600">{error}</p>
       )}
     </div>
   );

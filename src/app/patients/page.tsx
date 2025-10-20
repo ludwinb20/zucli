@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { SpinnerWithText } from '@/components/ui/spinner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +26,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Search, MoreHorizontal, Edit, Trash2, User, CalendarDays, UserRound, Calendar, ChevronLeft, ChevronRight, Phone, FileText, AlertTriangle } from 'lucide-react';
 import { PatientModal } from '@/components/PatientModal';
+import PatientDocumentsModal from '@/components/PatientDocumentsModal';
 import { medicalToasts } from '@/lib/toast';
 import { Patient, PaginationInfo } from '@/types';
 
@@ -39,6 +41,8 @@ export default function PatientsPage() {
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
+  const [selectedPatientForDocs, setSelectedPatientForDocs] = useState<Patient | null>(null);
   
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -268,10 +272,7 @@ export default function PatientsPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E9589]"></div>
-                <p className="text-gray-600 text-sm">Cargando pacientes...</p>
-              </div>
+              <SpinnerWithText text="Cargando pacientes..." />
             </div>
           ) : patients.length === 0 ? (
             <div className="text-center py-12">
@@ -373,6 +374,16 @@ export default function PatientsPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem 
+                        onClick={() => {
+                          setSelectedPatientForDocs(patient);
+                          setIsDocumentsModalOpen(true);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Ver Documentos
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
                         onClick={() => handleEditPatient(patient)}
                         className="cursor-pointer"
                       >
@@ -473,6 +484,19 @@ export default function PatientsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de documentos médicos */}
+      {selectedPatientForDocs && (
+        <PatientDocumentsModal
+          isOpen={isDocumentsModalOpen}
+          onClose={() => {
+            setIsDocumentsModalOpen(false);
+            setSelectedPatientForDocs(null);
+          }}
+          patientId={selectedPatientForDocs.id}
+          patientName={`${selectedPatientForDocs.firstName} ${selectedPatientForDocs.lastName}`}
+        />
+      )}
     </div>
   );
 }

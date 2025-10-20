@@ -37,6 +37,7 @@ import {
   AlertCircle,
   Save,
   Package,
+  FilePlus,
 } from "lucide-react";
 import {
   Appointment
@@ -48,6 +49,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { InlineSpinner } from "@/components/ui/spinner";
 import type { PreclinicaData, ConsultaData, TreatmentItem } from "@/types/components";
+import MedicalDocumentModal from "@/components/MedicalDocumentModal";
 import { TreatmentItemsSelector } from "@/components/TreatmentItemsSelector";
 import { ConsultaEspecialidad } from "@prisma/client";
 import { Payment } from "@/types";
@@ -67,10 +69,12 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
   const [currentConsultation, setCurrentConsultation] = useState<Consultation | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [specialtyTagIds, setSpecialtyTagIds] = useState<string[]>([]);
   
   // Estados de modales
   const [isPreclinicaModalOpen, setIsPreclinicaModalOpen] = useState(false);
   const [isConsultasPreviasModalOpen, setIsConsultasPreviasModalOpen] = useState(false);
+  const [isMedicalDocumentModalOpen, setIsMedicalDocumentModalOpen] = useState(false);
   
   const [consultaData, setConsultaData] = useState<ConsultaData>({
     sintomas: "",
@@ -96,45 +100,70 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
         return;
       }
 
-      const appointmentData = await appointmentResponse.json();
-      setAppointment(appointmentData);
+        const appointmentData = await appointmentResponse.json();
+        setAppointment(appointmentData);
 
-      // Verificar que la cita es pendiente
-      if (appointmentData.status !== 'pendiente') {
-        toast({
-          title: "Error",
-          description: "Esta cita no está en estado pendiente",
-          variant: "error",
-        });
-        router.push('/consulta-externa');
-        return;
+      // Cargar tags de la especialidad para priorizar en el selector de items
+      if (appointmentData.specialtyId) {
+        try {
+          const specialtyResponse = await fetch(`/api/specialties/${appointmentData.specialtyId}`);
+          if (specialtyResponse.ok) {
+            const specialtyData = await specialtyResponse.json();
+            // Extraer IDs de tags asociados a la especialidad a través de serviceItems
+            const tagIds = new Set<string>();
+            
+            // Si la especialidad tiene serviceItems configurados, usar sus tags
+            if (specialtyData.consultaEspecialidad && specialtyData.consultaEspecialidad.length > 0) {
+              specialtyData.consultaEspecialidad.forEach((ce: { serviceItem: { tags?: Array<{ id: string }> } }) => {
+                ce.serviceItem?.tags?.forEach((tag: { id: string }) => {
+                  tagIds.add(tag.id);
+                });
+              });
+            }
+            
+            setSpecialtyTagIds(Array.from(tagIds));
+          }
+        } catch (error) {
+          console.error('Error loading specialty tags:', error);
+        }
       }
 
-      // Verificar permisos para especialistas
-      if (user?.role?.name === 'especialista' && 
-          user.specialty?.id !== appointmentData.specialtyId) {
-        toast({
-          title: "Error",
-          description: "No tienes permisos para ver esta cita",
-          variant: "error",
-        });
-        router.push('/consulta-externa');
-        return;
-      }
+        // Verificar que la cita es pendiente
+        if (appointmentData.status !== 'pendiente') {
+          toast({
+            title: "Error",
+            description: "Esta cita no está en estado pendiente",
+            variant: "error",
+          });
+          router.push('/consulta-externa');
+          return;
+        }
 
-      // Cargar datos del paciente
-      const patientResponse = await fetch(`/api/patients/${appointmentData.patientId}`);
-      if (patientResponse.ok) {
-        const patientData = await patientResponse.json();
-        setPatient(patientData);
-      }
+        // Verificar permisos para especialistas
+        if (user?.role?.name === 'especialista' && 
+            user.specialty?.id !== appointmentData.specialtyId) {
+          toast({
+            title: "Error",
+            description: "No tienes permisos para ver esta cita",
+            variant: "error",
+          });
+          router.push('/consulta-externa');
+          return;
+        }
 
-      // Cargar preclínica
-      const preclinicaResponse = await fetch(`/api/preclinicas?appointmentId=${id}`);
-      if (preclinicaResponse.ok) {
-        const preclinicaData = await preclinicaResponse.json();
-        setPreclinica(preclinicaData);
-      }
+        // Cargar datos del paciente
+        const patientResponse = await fetch(`/api/patients/${appointmentData.patientId}`);
+        if (patientResponse.ok) {
+          const patientData = await patientResponse.json();
+          setPatient(patientData);
+        }
+
+        // Cargar preclínica
+        const preclinicaResponse = await fetch(`/api/preclinicas?appointmentId=${id}`);
+        if (preclinicaResponse.ok) {
+          const preclinicaData = await preclinicaResponse.json();
+          setPreclinica(preclinicaData);
+        }
 
       // Verificar/Crear consulta y pago automáticamente si el usuario tiene especialidad
       if (user?.specialty?.id) {
@@ -319,10 +348,10 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
       }
 
       // Cargar consultas previas del paciente (completadas)
-      const consultationsResponse = await fetch(`/api/consultations?patientId=${appointmentData.patientId}&status=completed`);
-      if (consultationsResponse.ok) {
-        const consultationsData = await consultationsResponse.json();
-        setPreviousConsultations(consultationsData.consultations || []);
+        const consultationsResponse = await fetch(`/api/consultations?patientId=${appointmentData.patientId}&status=completed`);
+        if (consultationsResponse.ok) {
+          const consultationsData = await consultationsResponse.json();
+          setPreviousConsultations(consultationsData.consultations || []);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -516,17 +545,27 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
 
           </Button>
         )}
+        {/* Botón Emitir Documento Médico */}
+        <Button
+          onClick={() => setIsMedicalDocumentModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+          size="lg"
+          title="Emitir Documento Médico"
+        >
+          <FilePlus size={20} className="mr-2" />
+          Emitir Documento
+        </Button>
       </div>
 
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Información del Paciente */}
+           {/* Información del Paciente */}
         <Card className="bg-white shadow-sm border border-gray-100">
-          <CardHeader className="bg-gradient-to-r from-[#2E9589] to-[#2E9589]/80 text-white rounded-t-lg">
+             <CardHeader className="bg-gradient-to-r from-[#2E9589] to-[#2E9589]/80 text-white rounded-t-lg">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2 text-lg text-white">
-                <User size={20} />
-                <span>{patient.firstName} {patient.lastName}</span>
-              </CardTitle>
+               <CardTitle className="flex items-center space-x-2 text-lg text-white">
+                 <User size={20} />
+                 <span>{patient.firstName} {patient.lastName}</span>
+               </CardTitle>
               <div className="flex items-center space-x-4 text-white text-sm">
                 <div className="flex items-center space-x-1">
                   <Stethoscope size={16} />
@@ -538,17 +577,17 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                 </div>
               </div>
             </div>
-          </CardHeader>
+             </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
-                <Label className="text-xs text-[#2E9589] font-medium">Edad</Label>
-                <p className="text-lg font-semibold text-[#2E9589]">{calculateAge(patient.birthDate)} años</p>
-              </div>
-              <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
-                <Label className="text-xs text-[#2E9589] font-medium">Sexo</Label>
-                <p className="text-lg font-semibold text-[#2E9589]">{patient.gender}</p>
-              </div>
+                <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
+                  <Label className="text-xs text-[#2E9589] font-medium">Edad</Label>
+                  <p className="text-lg font-semibold text-[#2E9589]">{calculateAge(patient.birthDate)} años</p>
+                </div>
+                <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
+                  <Label className="text-xs text-[#2E9589] font-medium">Sexo</Label>
+                  <p className="text-lg font-semibold text-[#2E9589]">{patient.gender}</p>
+                </div>
               <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
                 <Label className="text-xs text-[#2E9589] font-medium">Identidad</Label>
                 <p className="text-sm font-medium text-[#2E9589]">{patient.identityNumber}</p>
@@ -557,14 +596,14 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                 <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
                   <Label className="text-xs text-[#2E9589] font-medium">Teléfono</Label>
                   <p className="text-sm font-medium text-[#2E9589]">{patient.phone}</p>
-                </div>
-              )}
-              {patient.address && (
-                <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
+                  </div>
+                )}
+                {patient.address && (
+                  <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
                   <Label className="text-xs text-[#2E9589] font-medium">Dirección</Label>
-                  <p className="text-sm font-medium text-[#2E9589]">{patient.address}</p>
-                </div>
-              )}
+                    <p className="text-sm font-medium text-[#2E9589]">{patient.address}</p>
+                  </div>
+                )}
               {/* Alergias - Ocupa 2 columnas */}
               <div className="col-span-2 p-3 bg-red-50 rounded-lg border-2 border-red-400">
                 <Label className="text-xs text-red-700 font-semibold">Alergias</Label>
@@ -579,9 +618,9 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                   {patient.medicalHistory || "No registrada"}
                 </p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
 
         {/* Formulario de Historial Clínico - Ocupa todo el ancho */}
         <Card className="bg-white shadow-sm border border-gray-100">
@@ -639,6 +678,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                     items={consultaData.treatmentItems}
                     onChange={(items) => setConsultaData(prev => ({ ...prev, treatmentItems: items }))}
                     specialtyId={appointment?.specialtyId}
+                    prioritizeTags={specialtyTagIds}
                   />
                 </div>
 
@@ -646,7 +686,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                 <div className="space-y-2 lg:col-span-1">
                   <Label htmlFor="tratamientoNotas" className="text-sm font-medium text-gray-700">
                     Notas del Tratamiento
-                  </Label>
+                </Label>
                   <Textarea
                     id="tratamientoNotas"
                     value={consultaData.tratamientoNotas}
@@ -700,7 +740,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                      </>
                    )}
                 </Button>
-              </div>
+                </div>
             </CardContent>
           </Card>
 
@@ -716,81 +756,81 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
             </DialogHeader>
             
             <div className="space-y-4 pt-4">
-              {/* Signos Vitales */}
+                         {/* Signos Vitales */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Heart size={18} className="text-red-500 flex-shrink-0" />
-                  <div>
-                    <Label className="text-xs text-gray-600">Presión Arterial</Label>
-                    <p className="text-sm font-medium">{preclinica.presionArterial}</p>
+                           <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                             <Heart size={18} className="text-red-500 flex-shrink-0" />
+                             <div>
+                               <Label className="text-xs text-gray-600">Presión Arterial</Label>
+                               <p className="text-sm font-medium">{preclinica.presionArterial}</p>
+                             </div>
+                           </div>
+                           <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                             <Thermometer size={18} className="text-orange-500 flex-shrink-0" />
+                             <div>
+                               <Label className="text-xs text-gray-600">Temperatura</Label>
+                               <p className="text-sm font-medium">{preclinica.temperatura}°C</p>
+                             </div>
+                           </div>
+                           <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                             <Activity size={18} className="text-blue-500 flex-shrink-0" />
+                             <div>
+                               <Label className="text-xs text-gray-600">Frecuencia Cardíaca</Label>
+                               <p className="text-sm font-medium">{preclinica.fc} lpm</p>
+                             </div>
+                           </div>
+                           <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                             <Activity size={18} className="text-green-500 flex-shrink-0" />
+                             <div>
+                               <Label className="text-xs text-gray-600">Frecuencia Respiratoria</Label>
+                               <p className="text-sm font-medium">{preclinica.fr} rpm</p>
+                             </div>
+                           </div>
+                           <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                             <Heart size={18} className="text-purple-500 flex-shrink-0" />
+                             <div>
+                               <Label className="text-xs text-gray-600">Sat O₂</Label>
+                               <p className="text-sm font-medium">{preclinica.satO2}%</p>
+                             </div>
+                           </div>
+                           <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                             <Weight size={18} className="text-gray-500 flex-shrink-0" />
+                             <div>
+                               <Label className="text-xs text-gray-600">Peso</Label>
+                               <p className="text-sm font-medium">{preclinica.peso} lbs</p>
+                             </div>
+                           </div>
+                         <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                           <Ruler size={18} className="text-indigo-500 flex-shrink-0" />
+                           <div>
+                             <Label className="text-xs text-gray-600">Talla</Label>
+                             <p className="text-sm font-medium">{preclinica.talla} cm</p>
                   </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Thermometer size={18} className="text-orange-500 flex-shrink-0" />
-                  <div>
-                    <Label className="text-xs text-gray-600">Temperatura</Label>
-                    <p className="text-sm font-medium">{preclinica.temperatura}°C</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Activity size={18} className="text-blue-500 flex-shrink-0" />
-                  <div>
-                    <Label className="text-xs text-gray-600">Frecuencia Cardíaca</Label>
-                    <p className="text-sm font-medium">{preclinica.fc} lpm</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Activity size={18} className="text-green-500 flex-shrink-0" />
-                  <div>
-                    <Label className="text-xs text-gray-600">Frecuencia Respiratoria</Label>
-                    <p className="text-sm font-medium">{preclinica.fr} rpm</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Heart size={18} className="text-purple-500 flex-shrink-0" />
-                  <div>
-                    <Label className="text-xs text-gray-600">Sat O₂</Label>
-                    <p className="text-sm font-medium">{preclinica.satO2}%</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Weight size={18} className="text-gray-500 flex-shrink-0" />
-                  <div>
-                    <Label className="text-xs text-gray-600">Peso</Label>
-                    <p className="text-sm font-medium">{preclinica.peso} lbs</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <Ruler size={18} className="text-indigo-500 flex-shrink-0" />
-                  <div>
-                    <Label className="text-xs text-gray-600">Talla</Label>
-                    <p className="text-sm font-medium">{preclinica.talla} cm</p>
-                  </div>
-                </div>
-              </div>
+                           </div>
+                         </div>
 
-              {/* Evaluación Médica */}
-              {preclinica.examenFisico && (
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Examen Físico</Label>
+                         {/* Evaluación Médica */}
+                         {preclinica.examenFisico && (
+                           <div>
+                             <Label className="text-sm font-medium text-gray-700">Examen Físico</Label>
                   <p className="text-sm text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg">{preclinica.examenFisico}</p>
-                </div>
-              )}
+                           </div>
+                         )}
 
-              {preclinica.idc && (
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">IDC</Label>
+                         {preclinica.idc && (
+                           <div>
+                             <Label className="text-sm font-medium text-gray-700">IDC</Label>
                   <p className="text-sm text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg">{preclinica.idc}</p>
-                </div>
-              )}
+                           </div>
+                         )}
 
-              {preclinica.tx && (
-                <div>
-                  <Label className="text-sm font-medium text-gray-700">Tratamiento Inicial</Label>
+                         {preclinica.tx && (
+                           <div>
+                             <Label className="text-sm font-medium text-gray-700">Tratamiento Inicial</Label>
                   <p className="text-sm text-gray-900 mt-2 p-3 bg-gray-50 rounded-lg">{preclinica.tx}</p>
-                </div>
-              )}
-            </div>
+                           </div>
+                         )}
+                       </div>
           </DialogContent>
         </Dialog>
       )}
@@ -848,11 +888,11 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                         <Label className="text-sm font-semibold text-gray-700 flex items-center space-x-1">
                           <AlertCircle size={16} className="text-red-500" />
                           <span>Diagnóstico</span>
-                        </Label>
+                </Label>
                         <p className="text-sm text-gray-900 bg-red-50 p-3 rounded border border-red-200">
                           {consultation.diagnosis}
                         </p>
-                      </div>
+              </div>
                     )}
 
                     {/* Enfermedad Actual */}
@@ -860,14 +900,14 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                       <div className="space-y-1">
                         <Label className="text-sm font-semibold text-gray-700">
                           Síntomas / Enfermedad Actual
-                        </Label>
+                </Label>
                         <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
                           {consultation.currentIllness}
                         </p>
-                      </div>
+              </div>
                     )}
 
-                    {/* Tratamiento */}
+              {/* Tratamiento */}
                     {consultation.treatment && (
                       <div className="space-y-1">
                         <Label className="text-sm font-semibold text-gray-700 flex items-center space-x-1">
@@ -882,7 +922,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
 
                     {/* Items/Medicamentos */}
                     {consultation.items && consultation.items.length > 0 && (
-                      <div className="space-y-2">
+              <div className="space-y-2">
                         <Label className="text-sm font-semibold text-gray-700 flex items-center space-x-1">
                           <Package size={16} />
                           <span>Medicamentos y Servicios ({consultation.items.length})</span>
@@ -911,32 +951,46 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                         <Label className="text-sm font-semibold text-gray-700 flex items-center space-x-1">
                           <Activity size={16} className="text-blue-500" />
                           <span>Signos Vitales</span>
-                        </Label>
+                </Label>
                         <p className="text-sm text-gray-900 bg-blue-50 p-3 rounded border border-blue-200">
                           {consultation.vitalSigns}
                         </p>
-                      </div>
+              </div>
                     )}
 
-                    {/* Observaciones */}
+              {/* Observaciones */}
                     {consultation.observations && (
                       <div className="space-y-1">
                         <Label className="text-sm font-semibold text-gray-700">
                           Observaciones
-                        </Label>
+                </Label>
                         <p className="text-sm text-gray-600 bg-yellow-50 p-3 rounded border border-yellow-200 italic">
                           {consultation.observations}
                         </p>
-                      </div>
+              </div>
                     )}
                     </AccordionContent>
                   </AccordionItem>
                 ))}
               </Accordion>
-            </div>
+              </div>
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Modal de Documentos Médicos */}
+      <MedicalDocumentModal
+        isOpen={isMedicalDocumentModalOpen}
+        onClose={() => setIsMedicalDocumentModalOpen(false)}
+        patientId={patient.id}
+        onSuccess={() => {
+          toast({
+            title: 'Documento generado',
+            description: 'El documento médico se ha generado exitosamente',
+            variant: 'success',
+          });
+        }}
+      />
       </div>
     </div>
   );

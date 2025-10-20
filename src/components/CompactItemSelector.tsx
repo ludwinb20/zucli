@@ -21,12 +21,18 @@ interface CompactItemSelectorProps {
   items: TreatmentItem[];
   onChange: (items: TreatmentItem[]) => void;
   specialtyId?: string;
+  includeTags?: string[];
+  excludeTags?: string[];
+  prioritizeTags?: string[];
 }
 
 export function CompactItemSelector({ 
   items, 
   onChange,
-  specialtyId 
+  specialtyId,
+  includeTags,
+  excludeTags,
+  prioritizeTags
 }: CompactItemSelectorProps) {
   const [selectedPrice, setSelectedPrice] = useState<PriceWithRelations | null>(null);
   const [loading, setLoading] = useState(false);
@@ -133,6 +139,9 @@ export function CompactItemSelector({
                 setSelectedVariantId("");
               }}
               specialtyId={specialtyId}
+              includeTags={includeTags}
+              excludeTags={excludeTags}
+              prioritizeTags={prioritizeTags}
               label=""
               placeholder="Buscar producto/servicio..."
               className="h-9"

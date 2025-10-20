@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { extractISVFromTotal } from '@/lib/calculations';
 
 // POST /api/invoices/generate - Generar factura legal o recibo simple
 export async function POST(request: NextRequest) {
@@ -18,8 +19,17 @@ export async function POST(request: NextRequest) {
       clienteRTN, 
       clienteNombre, 
       detalleGenerico,
-      observaciones 
+      observaciones,
+      paymentMethod 
     } = body;
+
+    // Validar que paymentMethod sea válido
+    const validPaymentMethods = ['efectivo', 'tarjeta', 'transferencia'];
+    if (!paymentMethod || !validPaymentMethods.includes(paymentMethod)) {
+      return NextResponse.json({ 
+        error: 'Método de pago inválido. Debe ser: efectivo, tarjeta o transferencia' 
+      }, { status: 400 });
+    }
 
     // Validar que el pago existe y obtener su fuente
     const payment = await prisma.payment.findUnique({
@@ -29,6 +39,7 @@ export async function POST(request: NextRequest) {
         consultation: true,
         sale: true,
         hospitalization: true,
+        surgery: true,
       }
     });
 
@@ -49,6 +60,9 @@ export async function POST(request: NextRequest) {
     } else if (payment.hospitalizationId) {
       sourceType = 'hospitalization';
       sourceId = payment.hospitalizationId;
+    } else if (payment.surgeryId) {
+      sourceType = 'surgery';
+      sourceId = payment.surgeryId;
     }
 
     if (!sourceType || !sourceId) {
@@ -74,10 +88,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El pago no tiene items' }, { status: 400 });
     }
 
-    // Calcular montos
+    // Calcular montos usando funciones validadas
     const total = payment.total;
-    const subtotal = total / 1.15; // Extraer base imponible
-    const isv = total - subtotal; // ISV incluido
+    const { subtotal, isv } = extractISVFromTotal(total);
     const descuentos = 0; // Por ahora sin descuentos
 
     if (useRTN && clienteRTN) {
@@ -175,10 +188,13 @@ export async function POST(request: NextRequest) {
         data: { correlativoActual: correlativo }
       });
 
-      // Actualizar estado del pago a "paid"
+      // Actualizar estado del pago a "paid" y guardar método de pago
       await prisma.payment.update({
         where: { id: payment.id },
-        data: { status: 'paid' }
+        data: { 
+          status: 'paid',
+          paymentMethod 
+        }
       });
 
       // Mapear TransactionItem a formato de LegalInvoiceItem
@@ -255,10 +271,13 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Actualizar estado del pago a "paid"
+      // Actualizar estado del pago a "paid" y guardar método de pago
       await prisma.payment.update({
         where: { id: payment.id },
-        data: { status: 'paid' }
+        data: { 
+          status: 'paid',
+          paymentMethod 
+        }
       });
 
       // Mapear TransactionItem a formato de SimpleReceiptItem

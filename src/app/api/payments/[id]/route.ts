@@ -30,7 +30,13 @@ export async function GET(
         },
         consultation: true,
         sale: true,
-        hospitalization: true
+        hospitalization: true,
+        surgery: true,
+        refunds: {
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
       }
     });
 
@@ -87,7 +93,8 @@ export async function PUT(
           },
           consultation: true,
           sale: true,
-          hospitalization: true
+          hospitalization: true,
+          surgery: true
         }
       });
 

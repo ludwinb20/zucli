@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { calculateItemTotal } from "@/lib/calculations";
 
 // POST /api/consultations/[id]/items - Agregar item a una consulta existente
 export async function POST(
@@ -62,7 +63,7 @@ export async function POST(
     }
 
     const qty = quantity || 1;
-    const total = itemPrice * qty;
+    const total = calculateItemTotal(itemPrice, qty);
 
     // Crear el transaction item
     const consultationItem = await prisma.transactionItem.create({

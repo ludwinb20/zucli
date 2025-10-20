@@ -111,6 +111,52 @@ export type {
   InvoiceRangeModalProps
 } from './invoices';
 
+// Radiology System Types
+export type {
+  RadiologyOrderStatus,
+  RadiologyOrder,
+  RadiologyOrderWithRelations,
+  CreateRadiologyOrderData,
+  UpdateRadiologyOrderData,
+  RadiologyOrderListItem,
+  RadiologyOrderModalProps,
+  RadiologyResultsModalProps
+} from './radiology';
+
+// Dashboard types
+export type {
+  AdminStats,
+  CashierStats,
+  ReceptionStats,
+  RadiologistStats,
+  SpecialistStats,
+  ChartDataPoint
+} from './dashboard';
+
+// Hospitalization types
+export type {
+  HospitalizationStatus,
+  RoomStatus,
+  Room,
+  SalaDoctor,
+  Hospitalization,
+  HospitalizationWithRelations,
+  CreateHospitalizationData,
+  UpdateHospitalizationData,
+  HospitalizationCostCalculation,
+  HospitalizationModalProps,
+  HospitalizationDetailsModalProps,
+  DischargeModalProps,
+  RoomModalProps,
+  InsulinControl,
+  CreateInsulinControlData,
+  IntakeOutputControl,
+  CreateIntakeOutputControlData,
+  IntakeType,
+  ExcretaType,
+  IntakeOutputType
+} from './hospitalization';
+
 // API Types
 export type {
   PrismaWhereFilter,

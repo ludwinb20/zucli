@@ -15,6 +15,7 @@ export function PatientSearch({
 }: PatientSearchProps) {
   const [selectedPatientName, setSelectedPatientName] = useState<string>('');
   const [defaultOptions, setDefaultOptions] = useState<SearchableSelectOption[]>([]);
+  const [selectKey, setSelectKey] = useState(0);
 
   // Cargar pacientes por defecto al montar el componente
   useEffect(() => {
@@ -84,8 +85,18 @@ export function PatientSearch({
     }
   };
 
+  const handleAddNewPatient = () => {
+    // Forzar re-render del Select para cerrar el dropdown
+    setSelectKey(prev => prev + 1);
+    // Llamar al callback original
+    if (onAddNewPatient) {
+      onAddNewPatient();
+    }
+  };
+
   return (
     <SearchableSelect
+      key={selectKey}
       value={value}
       onChange={onChange}
       placeholder={selectedPatientName || placeholder}
@@ -96,7 +107,7 @@ export function PatientSearch({
       emptyMessage="No se encontraron pacientes"
       onSearch={searchPatients}
       options={defaultOptions}
-      onAddNew={onAddNewPatient}
+      onAddNew={handleAddNewPatient}
       addNewLabel="+ Agregar nuevo paciente"
     />
   );

@@ -1,0 +1,25 @@
+{
+  "patient": {
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "birthDate": "1990-01-15",
+    "gender": "Masculino",
+    "identityNumber": "0801-1990-12345",
+    "phone": "9876-5432",
+    "address": "Tegucigalpa, Honduras"
+  },
+  "user": {
+    "username": "admin",
+    "password": "admin123",
+    "name": "Administrator"
+  },
+  "appointment": {
+    "appointmentDate": "2025-12-25T10:00:00Z",
+    "status": "pendiente"
+  },
+  "specialty": {
+    "name": "Medicina General",
+    "description": "Consulta general"
+  }
+}
+

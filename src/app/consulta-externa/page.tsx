@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { SpinnerWithText } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -225,10 +226,7 @@ export default function ConsultaExternaPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E9589]"></div>
-                <p className="text-gray-600 text-sm">Cargando citas...</p>
-              </div>
+              <SpinnerWithText text="Cargando citas..." />
             </div>
           ) : filteredAppointments.length === 0 ? (
             <div className="text-center py-12">

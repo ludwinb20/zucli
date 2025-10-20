@@ -28,6 +28,18 @@ export async function GET(
               }
             }
           }
+        },
+        hospitalization: {
+          include: {
+            patient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                identityNumber: true
+              }
+            }
+          }
         }
       }
     });
@@ -100,6 +112,18 @@ export async function PUT(
               select: {
                 id: true,
                 name: true
+              }
+            }
+          }
+        },
+        hospitalization: {
+          include: {
+            patient: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                identityNumber: true
               }
             }
           }

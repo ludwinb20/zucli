@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { CreatePaymentData } from '@/types/payments';
 import { TransactionItemWithRelations } from '@/types/api';
+import { calculateItemTotal, sumItemTotals } from '@/lib/calculations';
 
 // GET /api/payments - Obtener pagos
 export async function GET(request: NextRequest) {
@@ -85,8 +86,20 @@ export async function GET(request: NextRequest) {
         hospitalization: {
           select: {
             id: true,
-            roomNumber: true,
+            roomId: true,
             admissionDate: true,
+          }
+        },
+        surgery: {
+          select: {
+            id: true,
+            createdAt: true,
+            status: true,
+          }
+        },
+        refunds: {
+          orderBy: {
+            createdAt: 'desc'
           }
         }
       },
@@ -136,6 +149,17 @@ export async function GET(request: NextRequest) {
               variant: { select: { id: true, name: true, price: true } }
             }
           });
+        } else if (payment.surgeryId) {
+          items = await prisma.transactionItem.findMany({
+            where: {
+              sourceType: 'surgery',
+              sourceId: payment.surgeryId
+            },
+            include: {
+              serviceItem: { select: { id: true, name: true, type: true, basePrice: true } },
+              variant: { select: { id: true, name: true, price: true } }
+            }
+          });
         }
 
         return {
@@ -176,7 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: CreatePaymentData = await request.json();
-    const { patientId, items } = body;
+    const { patientId, items, type = 'sale' } = body;
 
     // Validar campos requeridos
     if (!patientId || !items || items.length === 0) {
@@ -215,7 +239,7 @@ export async function POST(request: NextRequest) {
             nombre: item.nombre,
             precioUnitario: item.precioUnitario,
             descuento: 0,
-            total: item.precioUnitario * item.quantity,
+            total: calculateItemTotal(item.precioUnitario, item.quantity),
             addedBy: session.user.id,
           },
           include: {
@@ -270,9 +294,35 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Si es un pago de radiología, crear automáticamente la orden
+    let radiologyOrder = null;
+    if (type === 'radiology') {
+      radiologyOrder = await prisma.radiologyOrder.create({
+        data: {
+          patientId,
+          paymentId: newPayment.id,
+          status: 'pending',
+          notes: body.notes || '',
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              identityNumber: true,
+              birthDate: true,
+              gender: true,
+            },
+          },
+        },
+      });
+    }
+
     return NextResponse.json({
       ...newPayment,
-      items: createdItems
+      items: createdItems,
+      radiologyOrder, // Incluir la orden si fue creada
     }, { status: 201 });
 
   } catch (error) {

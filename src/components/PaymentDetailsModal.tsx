@@ -24,8 +24,13 @@ import {
   Stethoscope,
   ShoppingCart,
   HelpCircle,
+  Activity,
+  Scissors,
+  Wallet,
+  CreditCard,
+  ArrowRightLeft,
 } from "lucide-react";
-import { PaymentWithRelations, PaymentStatus } from "@/types/payments";
+import { PaymentWithRelations, PaymentStatus, PaymentMethod } from "@/types/payments";
 import { InlineSpinner } from "@/components/ui/spinner";
 import { generateSimpleReceiptFromDB, generateLegalInvoiceFromDB, printThermalReceipt } from "@/lib/thermal-printer";
 import { useToast } from "@/hooks/use-toast";
@@ -51,6 +56,7 @@ export default function PaymentDetailsModal({
   const [rtnPart2, setRtnPart2] = useState("");
   const [rtnPart3, setRtnPart3] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
 
   // Resetear switches al abrir/cambiar pago
   useEffect(() => {
@@ -60,6 +66,7 @@ export default function PaymentDetailsModal({
     setRtnPart2("");
     setRtnPart3("");
     setCompanyName("");
+    setPaymentMethod("efectivo");
   }, [payment]);
 
   if (!payment) return null;
@@ -114,6 +121,7 @@ export default function PaymentDetailsModal({
           clienteNombre: useRTN ? companyName : `${payment.patient.firstName} ${payment.patient.lastName}`,
           detalleGenerico: useGenericDescription,
           observaciones: null,
+          paymentMethod,
         }),
       });
 
@@ -248,6 +256,11 @@ export default function PaymentDetailsModal({
                 <Building2 size={14} className="text-blue-500" />
                 <span className="text-xs font-medium text-blue-700">Origen: Hospitalización</span>
               </>
+            ) : payment.surgeryId ? (
+              <>
+                <Scissors size={14} className="text-blue-500" />
+                <span className="text-xs font-medium text-blue-700">Origen: Cirugía</span>
+              </>
             ) : (
               <>
                 <HelpCircle size={14} className="text-blue-500" />
@@ -257,45 +270,114 @@ export default function PaymentDetailsModal({
           </div>
         </div>
 
-        {/* Opciones de Facturación */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Switch para descripción genérica */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="flex-1 mr-4">
-              <Label htmlFor="generic-description" className="text-sm font-medium text-gray-900 cursor-pointer">
-                Descripción Genérica
-              </Label>
-              <p className="text-xs text-gray-600 mt-1">
-                Mostrar &quot;Servicios Médicos&quot; en lugar del detalle específico
-              </p>
+        {/* Mostrar método de pago cuando está pagado */}
+        {payment.status === "paid" && payment.paymentMethod && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-3">
+              {payment.paymentMethod === "efectivo" && <Wallet size={20} className="text-green-600" />}
+              {payment.paymentMethod === "tarjeta" && <CreditCard size={20} className="text-green-600" />}
+              {payment.paymentMethod === "transferencia" && <ArrowRightLeft size={20} className="text-green-600" />}
+              <div>
+                <p className="text-sm font-medium text-gray-900">Método de Pago</p>
+                <p className="text-xs text-gray-600">
+                  {payment.paymentMethod === "efectivo" && "Efectivo"}
+                  {payment.paymentMethod === "tarjeta" && "Tarjeta"}
+                  {payment.paymentMethod === "transferencia" && "Transferencia"}
+                </p>
+              </div>
             </div>
-            <Switch
-              id="generic-description"
-              checked={useGenericDescription}
-              onCheckedChange={setUseGenericDescription}
-            />
           </div>
+        )}
 
-          {/* Switch para RTN */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="flex-1 mr-4">
-              <Label htmlFor="use-rtn" className="text-sm font-medium text-gray-900 cursor-pointer">
-                Factura con RTN
+        {/* Opciones de Facturación - Solo mostrar si está pendiente */}
+        {payment.status === "pendiente" && (
+          <>
+            {/* Selector de Método de Pago */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <Label className="text-sm font-medium text-gray-900 mb-3 block">
+                Método de Pago *
               </Label>
-              <p className="text-xs text-gray-600 mt-1">
-                Incluir información fiscal de empresa
-              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("efectivo")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                    paymentMethod === "efectivo"
+                      ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
+                      : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                  }`}
+                >
+                  <Wallet size={24} className="mb-2" />
+                  <span className="text-sm font-medium">Efectivo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("tarjeta")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                    paymentMethod === "tarjeta"
+                      ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
+                      : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                  }`}
+                >
+                  <CreditCard size={24} className="mb-2" />
+                  <span className="text-sm font-medium">Tarjeta</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("transferencia")}
+                  className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                    paymentMethod === "transferencia"
+                      ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
+                      : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                  }`}
+                >
+                  <ArrowRightLeft size={24} className="mb-2" />
+                  <span className="text-sm font-medium">Transferencia</span>
+                </button>
+              </div>
             </div>
-            <Switch
-              id="use-rtn"
-              checked={useRTN}
-              onCheckedChange={setUseRTN}
-            />
-          </div>
-        </div>
 
-        {/* Campos de RTN (solo si está activado) */}
-        {useRTN && (
+            {/* Opciones de Facturación */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {/* Switch para descripción genérica */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex-1 mr-4">
+                  <Label htmlFor="generic-description" className="text-sm font-medium text-gray-900 cursor-pointer">
+                    Descripción Genérica
+                  </Label>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Mostrar &quot;Servicios Médicos&quot; en lugar del detalle específico
+                  </p>
+                </div>
+                <Switch
+                  id="generic-description"
+                  checked={useGenericDescription}
+                  onCheckedChange={setUseGenericDescription}
+                />
+              </div>
+
+              {/* Switch para RTN */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex-1 mr-4">
+                  <Label htmlFor="use-rtn" className="text-sm font-medium text-gray-900 cursor-pointer">
+                    Factura con RTN
+                  </Label>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Incluir información fiscal de empresa
+                  </p>
+                </div>
+                <Switch
+                  id="use-rtn"
+                  checked={useRTN}
+                  onCheckedChange={setUseRTN}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Campos de RTN (solo si está activado y pendiente) */}
+        {payment.status === "pendiente" && useRTN && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-900 flex items-center space-x-1">
@@ -428,6 +510,29 @@ export default function PaymentDetailsModal({
                     {formatCurrency(calculateTotal())}
                   </span>
                 </div>
+
+                {/* Reembolsos */}
+                {payment.refunds && payment.refunds.length > 0 && (
+                  <>
+                    <div className="h-px bg-red-200 my-3"></div>
+                    {payment.refunds.map((refund, idx) => (
+                      <div key={refund.id} className="flex items-center justify-between text-sm">
+                        <span className="text-red-600">
+                          Reembolso {idx + 1} - {new Date(refund.createdAt).toLocaleDateString("es-HN")}
+                        </span>
+                        <span className="font-semibold text-red-600">
+                          - {formatCurrency(refund.amount)}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between pt-2 border-t border-red-200">
+                      <span className="text-lg font-bold text-gray-900">Total Neto:</span>
+                      <span className="text-xl font-bold text-[#2E9589]">
+                        {formatCurrency(calculateTotal() - (payment.refunds?.reduce((sum, r) => sum + r.amount, 0) || 0))}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>

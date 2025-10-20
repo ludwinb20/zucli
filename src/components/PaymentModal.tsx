@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { PatientSearch } from "@/components/common/PatientSearch";
+import { PatientModal } from "@/components/PatientModal";
 import { TreatmentItemsSelector } from "@/components/TreatmentItemsSelector";
 import { TreatmentItem } from "@/types/components";
 import { CreatePaymentData } from "@/types/payments";
+import { Patient } from "@/types";
 import { InlineSpinner } from "@/components/ui/spinner";
-import { Save, X } from "lucide-react";
+import { Save, X, ShoppingCart, Activity } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -30,7 +33,30 @@ export default function PaymentModal({
   const [saving, setSaving] = useState(false);
   const [patientId, setPatientId] = useState("");
   const [items, setItems] = useState<TreatmentItem[]>([]);
+  const [paymentType, setPaymentType] = useState<'sale' | 'radiology'>('sale');
   const [error, setError] = useState("");
+  const [radiologyTagId, setRadiologyTagId] = useState<string>("");
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const { toast } = useToast();
+
+  // Cargar configuración de radiología
+  useEffect(() => {
+    const loadRadiologyConfig = async () => {
+      try {
+        const response = await fetch("/api/config?key=radiology");
+        if (response.ok) {
+          const data = await response.json();
+          setRadiologyTagId(data.value?.radiologyTagId || "");
+        }
+      } catch (error) {
+        console.error("Error loading radiology config:", error);
+      }
+    };
+
+    if (isOpen) {
+      loadRadiologyConfig();
+    }
+  }, [isOpen]);
 
   const handleSubmit = async () => {
     try {
@@ -52,6 +78,7 @@ export default function PaymentModal({
       // Preparar datos para enviar (con snapshot)
       const paymentData: CreatePaymentData = {
         patientId,
+        type: paymentType,
         items: items.map(item => ({
           priceId: item.priceId,
           variantId: item.variantId,
@@ -88,6 +115,7 @@ export default function PaymentModal({
     if (!saving) {
       setPatientId("");
       setItems([]);
+      setPaymentType('sale');
       setError("");
       onClose();
     }
@@ -95,6 +123,40 @@ export default function PaymentModal({
 
   const calculateTotal = () => {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  };
+
+  // Handler para crear paciente
+  const handlePatientCreated = async (data: unknown) => {
+    try {
+      const response = await fetch("/api/patients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Error al crear paciente");
+
+      const newPatient = await response.json();
+      
+      // Seleccionar automáticamente el nuevo paciente
+      setPatientId(newPatient.id);
+      
+      // Cerrar el modal de paciente
+      setIsPatientModalOpen(false);
+      
+      // Mostrar toast de éxito
+      toast({
+        title: "Paciente creado",
+        description: "El paciente ha sido agregado exitosamente"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo crear el paciente",
+        variant: "error",
+      });
+      throw error;
+    }
   };
 
   return (
@@ -107,16 +169,51 @@ export default function PaymentModal({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Selector de Paciente */}
+          {/* Tipo de Pago */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">
-              Paciente *
+              Tipo de Pago *
             </Label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentType('sale')}
+                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                  paymentType === 'sale'
+                    ? 'border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <ShoppingCart className="h-5 w-5" />
+                  <span className="font-medium">Venta Normal</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentType('radiology')}
+                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                  paymentType === 'radiology'
+                    ? 'border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  <span className="font-medium">Rayos X / Radiología</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Selector de Paciente */}
+          <div className="space-y-2">
             <PatientSearch
               value={patientId}
               onChange={setPatientId}
               placeholder="Buscar paciente por nombre o identidad..."
               error={error && !patientId ? "Debe seleccionar un paciente" : ""}
+              onAddNewPatient={() => setIsPatientModalOpen(true)}
             />
           </div>
 
@@ -128,6 +225,7 @@ export default function PaymentModal({
             <TreatmentItemsSelector
               items={items}
               onChange={setItems}
+              includeTags={paymentType === 'radiology' && radiologyTagId ? [radiologyTagId] : undefined}
             />
             {error && items.length === 0 && (
               <p className="text-sm text-red-600 mt-1">{error}</p>
@@ -184,6 +282,14 @@ export default function PaymentModal({
           </div>
         </div>
       </DialogContent>
+
+      {/* Modal anidado para crear paciente */}
+      <PatientModal
+        isOpen={isPatientModalOpen}
+        onClose={() => setIsPatientModalOpen(false)}
+        patient={null}
+        onSave={handlePatientCreated}
+      />
     </Dialog>
   );
 }

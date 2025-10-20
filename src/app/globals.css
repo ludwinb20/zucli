@@ -107,3 +107,8 @@ html {
 .scroll-mt-20 {
   scroll-margin-top: 5rem;
 }
+
+/* En el CSS global o en el componente */
+[data-radix-select-content] {
+  z-index: 60 !important;
+}

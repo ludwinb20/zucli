@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { SpinnerWithText } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -38,12 +39,15 @@ import {
   ShoppingCart,
   Building2,
   HelpCircle,
+  Activity,
+  Scissors,
 } from "lucide-react";
 import { PaymentWithRelations, PaymentStatus } from "@/types/payments";
 import { useToast } from "@/hooks/use-toast";
 import PaymentModal from "@/components/PaymentModal";
 import PaymentDetailsModal from "@/components/PaymentDetailsModal";
 import EditPaymentItemsModal from "@/components/EditPaymentItemsModal";
+import RefundModal from "@/components/RefundModal";
 
 export default function PaymentsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -61,6 +65,7 @@ export default function PaymentsPage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditItemsModalOpen, setIsEditItemsModalOpen] = useState(false);
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithRelations | null>(null);
   const [rangeWarnings, setRangeWarnings] = useState<string[]>([]);
 
@@ -168,6 +173,12 @@ export default function PaymentsPage() {
   const handleOpenDetails = (payment: PaymentWithRelations) => {
     setSelectedPayment(payment);
     setIsDetailsModalOpen(true);
+  };
+
+  // Abrir modal de reembolso
+  const handleOpenRefund = (payment: PaymentWithRelations) => {
+    setSelectedPayment(payment);
+    setIsRefundModalOpen(true);
   };
 
   // Cerrar modal de detalles
@@ -362,10 +373,7 @@ export default function PaymentsPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E9589]"></div>
-                <p className="text-gray-600 text-sm">Cargando pagos...</p>
-              </div>
+              <SpinnerWithText text="Cargando pagos..." />
             </div>
           ) : payments.length === 0 ? (
             <div className="text-center py-12">
@@ -395,7 +403,19 @@ export default function PaymentsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-4 mb-2">
                         <h3 className="font-semibold text-gray-900 text-lg">
-                          {payment.patient.firstName} {payment.patient.lastName} -  <span className="text-[#2E9589]"> {formatCurrency(payment.total)}</span>
+                          {payment.patient.firstName} {payment.patient.lastName} - 
+                          {(() => {
+                            const totalRefunded = payment.refunds?.reduce((sum, r) => sum + r.amount, 0) || 0;
+                            const netTotal = payment.total - totalRefunded;
+                            return totalRefunded > 0 ? (
+                              <span>
+                                <span className="text-gray-400 line-through ml-2">{formatCurrency(payment.total)}</span>
+                                <span className="text-[#2E9589] ml-2">{formatCurrency(netTotal)}</span>
+                              </span>
+                            ) : (
+                              <span className="text-[#2E9589] ml-2">{formatCurrency(payment.total)}</span>
+                            );
+                          })()}
                         </h3>
                         {getStatusBadge(payment.status)}
                       </div>
@@ -434,6 +454,11 @@ export default function PaymentsPage() {
                                 <Building2 size={12} />
                                 <span>Hospital.</span>
                               </>
+                            ) : payment.surgeryId ? (
+                              <>
+                                <Scissors size={12} />
+                                <span>Cirugía</span>
+                              </>
                             ) : (
                               <>
                                 <HelpCircle size={12} />
@@ -456,6 +481,17 @@ export default function PaymentsPage() {
                         className="border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {payment.status === "paid" && (
+                      <Button
+                        onClick={() => handleOpenRefund(payment)}
+                        variant="outline"
+                        size="sm"
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                        title="Registrar reembolso"
+                      >
+                        <DollarSign className="h-4 w-4" />
                       </Button>
                     )}
                     <Button
@@ -531,6 +567,21 @@ export default function PaymentsPage() {
         payment={selectedPayment}
         onUpdate={handleItemsUpdated}
       />
+
+      {/* Modal de Reembolso */}
+      {selectedPayment && (
+        <RefundModal
+          isOpen={isRefundModalOpen}
+          onClose={() => {
+            setIsRefundModalOpen(false);
+            setSelectedPayment(null);
+          }}
+          paymentId={selectedPayment.id}
+          paymentTotal={selectedPayment.total}
+          totalRefunded={selectedPayment.refunds?.reduce((sum, r) => sum + r.amount, 0) || 0}
+          onSave={handlePaymentUpdated}
+        />
+      )}
     </div>
   );
 }

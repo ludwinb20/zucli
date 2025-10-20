@@ -12,6 +12,7 @@ export default function PreclinicaModal({
   isOpen,
   onClose,
   appointment,
+  hospitalizationId,
   onSave,
   isLoading = false
 }: PreclinicaModalProps) {
@@ -87,12 +88,19 @@ export default function PreclinicaModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm() || !appointment) {
+    if (!validateForm()) {
+      return;
+    }
+
+    const id = appointment?.id || hospitalizationId;
+    if (!id) {
+      console.error('No appointment or hospitalization ID provided');
       return;
     }
 
     try {
-      await onSave(appointment.id, formData);
+      await onSave(id, formData);
+      onClose(); // Cerrar el modal después de guardar exitosamente
     } catch (error) {
       console.error('Error saving preclinica:', error);
     }
@@ -113,17 +121,21 @@ export default function PreclinicaModal({
     }
   };
 
-  if (!appointment) return null;
+  if (!appointment && !hospitalizationId) return null;
+
+  const isHospitalization = !!hospitalizationId;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-900">
-            Preclínica
+            {isHospitalization ? 'Signos Vitales' : 'Preclínica'}
           </DialogTitle>
           <DialogDescription className="text-gray-600">
-            Registro de signos vitales y evaluación inicial para la cita médica
+            {isHospitalization 
+              ? 'Registro de signos vitales durante la hospitalización'
+              : 'Registro de signos vitales y evaluación inicial para la cita médica'}
           </DialogDescription>
         </DialogHeader>
 

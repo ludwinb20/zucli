@@ -183,12 +183,43 @@ export interface PreclinicaData {
 export interface PreclinicaModalProps {
   isOpen: boolean;
   onClose: () => void;
-  appointment: {
+  appointment?: {
     id: string;
     preclinica?: PreclinicaData;
     [key: string]: unknown;
   };
-  onSave: (appointmentId: string, preclinicaData: PreclinicaData) => Promise<void>;
+  hospitalizationId?: string;
+  onSave: (id: string, preclinicaData: PreclinicaData) => Promise<void>;
+  isLoading?: boolean;
+}
+
+// Examen Físico Data Types
+export interface ExamenFisicoData {
+  id?: string;
+  aparienciaGeneral?: string;
+  cabeza?: string;
+  ojos?: string;
+  orl?: string;
+  torax?: string;
+  corazon?: string;
+  pulmones?: string;
+  abdomen?: string;
+  genitoUrinario?: string;
+  extremidades?: string;
+  osteoarticular?: string;
+  pielYPaneras?: string;
+  neurologicos?: string;
+  columna?: string;
+  comentarios?: string;
+  diagnostico?: string;
+  createdAt?: string;
+}
+
+export interface ExamenFisicoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  hospitalizationId?: string;
+  onSave: (id: string, examenFisicoData: ExamenFisicoData) => Promise<void>;
   isLoading?: boolean;
 }
 

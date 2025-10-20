@@ -12,7 +12,7 @@ export default withAuth(
     }
 
     // Proteger rutas de administración - solo admin
-    if (pathname.startsWith('/admin') || pathname === '/dashboard') {
+    if (pathname.startsWith('/admin')) {
       if (!token || token.role?.name !== 'admin') {
         return NextResponse.redirect(new URL('/login', req.url));
       }

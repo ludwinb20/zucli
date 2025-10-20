@@ -6,10 +6,10 @@ export type { BadgeProps };
 
 function Badge({ className, variant = "default", ...props }: BadgeProps) {
   const variantClasses = {
-    default: "border-transparent bg-blue-600 text-white hover:bg-blue-700",
-    secondary: "border-transparent bg-gray-200 text-gray-800 hover:bg-gray-300",
-    destructive: "border-transparent bg-red-600 text-white hover:bg-red-700",
-    outline: "border-gray-300 bg-white text-gray-700 hover:bg-gray-50",
+    default: "border-transparent bg-blue-600 text-white",
+    secondary: "border-transparent bg-gray-200 text-gray-800",
+    destructive: "border-transparent bg-red-600 text-white",
+    outline: "border-gray-300 bg-white text-gray-700",
   }
 
   return (

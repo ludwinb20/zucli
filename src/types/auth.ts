@@ -22,7 +22,8 @@ export const ROLES = {
   ADMIN: 'admin',
   ESPECIALISTA: 'especialista',
   RECEPCION: 'recepcion',
-  CAJA: 'caja'
+  CAJA: 'caja',
+  RADIOLOGO: 'radiologo'
 } as const;
 
 export type UserRole = typeof ROLES[keyof typeof ROLES];

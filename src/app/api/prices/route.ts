@@ -17,15 +17,37 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    console.log('includeTags', searchParams.get("includeTags"));
     const type = searchParams.get("type"); // "medicamento" o "servicio"
     const tagName = searchParams.get("tag"); // nombre del tag
     const specialtyId = searchParams.get("specialtyId"); // ID de especialidad
     const isActive = searchParams.get("isActive"); // "true" o "false"
     const search = searchParams.get("search"); // búsqueda por nombre
     const limit = parseInt(searchParams.get("limit") || "100");
+    
+    // Nuevos parámetros para filtrado avanzado de tags
+    const includeTagsParam = searchParams.get("includeTags"); // IDs separados por coma
+    const excludeTagsParam = searchParams.get("excludeTags"); // IDs separados por coma
+    const prioritizeTagsParam = searchParams.get("prioritizeTags"); // IDs separados por coma para ordenar
+    
+    const includeTags = includeTagsParam ? includeTagsParam.split(",").filter(id => id.trim()) : [];
+    const excludeTags = excludeTagsParam ? excludeTagsParam.split(",").filter(id => id.trim()) : [];
+    const prioritizeTags = prioritizeTagsParam ? prioritizeTagsParam.split(",").filter(id => id.trim()) : [];
 
     // Construir filtros dinámicos
-    const where: { type?: string, isActive?: boolean, name?: { contains: string }, serviceItemToTags?: { some: { tag: { name: string } } }, serviceItemToSpecialties?: { some: { specialty: { id: string } } } } = {};
+    const where: { 
+      type?: string, 
+      isActive?: boolean, 
+      name?: { contains: string }, 
+      tags?: { some: { tag: { name: string } } },
+      AND?: Array<{ 
+        tags?: { 
+          some?: { tagId: { in: string[] } },
+          none?: { tagId: { in: string[] } }
+        } 
+      }>,
+      specialties?: { some: { specialty: { id: string } } } 
+    } = {};
 
     if (type) {
       where.type = type;
@@ -42,13 +64,49 @@ export async function GET(request: NextRequest) {
     }
 
     if (tagName) {
-      where.serviceItemToTags = {
+      where.tags = {
         some: {
           tag: {
             name: tagName
           }
         }
       };
+    }
+
+    // Filtrado avanzado de tags con inclusión y exclusión
+    if (includeTags.length > 0 || excludeTags.length > 0) {
+      where.AND = [];
+      
+      // Si hay tags para incluir, solo traer items que tengan AL MENOS UNO de esos tags
+      if (includeTags.length > 0) {
+        where.AND.push({
+          tags: {
+            some: {
+              tagId: {
+                in: includeTags
+              }
+            }
+          }
+        });
+      }
+      // Si hay tags para excluir, NO traer items que tengan NINGUNO de esos tags
+      // PERO: los tags en includeTags tienen prioridad (ya están filtrados arriba)
+      if (excludeTags.length > 0) {
+        // Filtrar los excludeTags que NO están en includeTags (prioridad a include)
+        const finalExcludeTags = excludeTags.filter(tagId => !includeTags.includes(tagId));
+        
+        if (finalExcludeTags.length > 0) {
+          where.AND.push({
+            tags: {
+              none: {
+                tagId: {
+                  in: finalExcludeTags
+                }
+              }
+            }
+          });
+        }
+      }
     }
 
     // Filtro por especialidad: DESHABILITADO por ahora
@@ -75,7 +133,7 @@ export async function GET(request: NextRequest) {
     // }
 
     const prices = await prisma.serviceItem.findMany({
-      where,
+      where: where as never,
       include: {
         variants: {
           where: {
@@ -85,12 +143,12 @@ export async function GET(request: NextRequest) {
             name: 'asc'
           }
         },
-        serviceItemToTags: {
+        tags: {
           include: {
             tag: true
           }
         },
-        serviceItemToSpecialties: {
+        specialties: {
           include: {
             specialty: true
           }
@@ -105,17 +163,39 @@ export async function GET(request: NextRequest) {
     // Transformar la respuesta para facilitar el uso en el frontend
     const transformedPrices = prices.map(price => ({
       ...price,
-      tags: (price as unknown as { serviceItemToTags: Array<{ tag: TagForSorting }> }).serviceItemToTags.map((pt) => pt.tag),
-      specialties: (price as unknown as { serviceItemToSpecialties: Array<{ specialty: SpecialtyForSorting }> }).serviceItemToSpecialties.map((ps) => ps.specialty)
+      tags: (price as unknown as { tags: Array<{ tag: TagForSorting }> }).tags.map((pt) => pt.tag),
+      specialties: (price as unknown as { specialties: Array<{ specialty: SpecialtyForSorting }> }).specialties.map((ps) => ps.specialty)
     }));
 
-    // Ordenar con prioridad:
-    // 1. Precios que coinciden con el tag buscado + especialidad del usuario
-    // 2. Precios que coinciden con el tag buscado
-    // 3. Precios con tag "especialidad" de la especialidad del usuario
-    // 4. Otros precios con tag "especialidad"
-    // 5. Resto de precios (orden alfabético)
-    const sortedPrices = transformedPrices.sort((a, b) => {
+    // Si hay tags para priorizar, ordenar poniendo esos primero
+    let sortedPrices = transformedPrices;
+    
+    if (prioritizeTags.length > 0) {
+      sortedPrices = transformedPrices.sort((a, b) => {
+        const aHasPriorityTag = a.tags.some((t: TagForSorting) => 
+          prioritizeTags.includes(t.id)
+        );
+        const bHasPriorityTag = b.tags.some((t: TagForSorting) => 
+          prioritizeTags.includes(t.id)
+        );
+
+        // Los que tienen tag prioritario van primero
+        if (aHasPriorityTag && !bHasPriorityTag) return -1;
+        if (!aHasPriorityTag && bHasPriorityTag) return 1;
+        
+        // Si ambos tienen o ninguno tiene, mantener orden alfabético
+        return a.name.localeCompare(b.name);
+      });
+    }
+    // Si no hay prioritizeTags, aplicar el ordenamiento original
+    else {
+      // Ordenar con prioridad:
+      // 1. Precios que coinciden con el tag buscado + especialidad del usuario
+      // 2. Precios que coinciden con el tag buscado
+      // 3. Precios con tag "especialidad" de la especialidad del usuario
+      // 4. Otros precios con tag "especialidad"
+      // 5. Resto de precios (orden alfabético)
+      sortedPrices = transformedPrices.sort((a, b) => {
       // Verificar si coincide con el tag filtrado
       const aMatchesTagFilter = tagName 
         ? a.tags.some((t: TagForSorting) => t.name.toLowerCase() === tagName.toLowerCase())
@@ -168,9 +248,10 @@ export async function GET(request: NextRequest) {
         return 1;
       }
 
-      // Prioridad 5: Orden alfabético
-      return a.name.localeCompare(b.name);
-    });
+        // Prioridad 5: Orden alfabético
+        return a.name.localeCompare(b.name);
+      });
+    }
 
     return NextResponse.json({
       prices: sortedPrices,

@@ -7,12 +7,35 @@ import { TransactionItem, TransactionItemWithRelations } from './transactions';
 // Estado de pago
 export type PaymentStatus = 'pendiente' | 'paid' | 'cancelado';
 
+// Método de pago
+export type PaymentMethod = 'efectivo' | 'tarjeta' | 'transferencia';
+
 // Tipo de fuente del pago
-export type PaymentSourceType = 'consultation' | 'sale' | 'hospitalization';
+export type PaymentSourceType = 'consultation' | 'sale' | 'hospitalization' | 'radiology' | 'surgery';
 
 // Re-exportar TransactionItem como PaymentItem para compatibilidad
 export type PaymentItem = TransactionItem;
 export type PaymentItemWithRelations = TransactionItemWithRelations;
+
+// ============================================
+// REEMBOLSOS
+// ============================================
+
+export interface Refund {
+  id: string;
+  paymentId: string;
+  amount: number;
+  reason: string;
+  createdBy?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface CreateRefundData {
+  paymentId: string;
+  amount: number;
+  reason: string;
+}
 
 // Pago base
 export interface Payment {
@@ -23,9 +46,11 @@ export interface Payment {
   consultationId?: string | null;
   saleId?: string | null;
   hospitalizationId?: string | null;
+  surgeryId?: string | null;
   
   status: PaymentStatus;
   total: number;
+  paymentMethod?: string | null;
   createdBy?: string | null;
   notes?: string | null;
   createdAt: Date | string;
@@ -60,8 +85,17 @@ export interface PaymentWithRelations extends Payment {
     admissionDate: Date | string;
   } | null;
   
+  surgery?: {
+    id: string;
+    createdAt: Date | string;
+    status: string;
+  } | null;
+  
   // Items obtenidos de la fuente
   items?: TransactionItemWithRelations[];
+  
+  // Reembolsos asociados
+  refunds?: Refund[];
 }
 
 // ============================================
@@ -82,6 +116,7 @@ export interface CreatePaymentData {
   patientId: string;
   items: CreatePaymentItemData[];
   notes?: string;
+  type?: 'sale' | 'radiology'; // Tipo de pago: venta normal o radiología
 }
 
 // Datos para crear un pago desde una fuente existente
@@ -152,6 +187,7 @@ export function getPaymentSourceType(payment: Payment | PaymentWithRelations): P
   if (payment.consultationId) return 'consultation';
   if (payment.saleId) return 'sale';
   if (payment.hospitalizationId) return 'hospitalization';
+  if (payment.surgeryId) return 'surgery';
   return null;
 }
 
@@ -159,7 +195,7 @@ export function getPaymentSourceType(payment: Payment | PaymentWithRelations): P
  * Obtiene el ID de la fuente de un pago
  */
 export function getPaymentSourceId(payment: Payment | PaymentWithRelations): string | null {
-  return payment.consultationId || payment.saleId || payment.hospitalizationId || null;
+  return payment.consultationId || payment.saleId || payment.hospitalizationId || payment.surgeryId || null;
 }
 
 /**
@@ -169,5 +205,8 @@ export function getPaymentSourceName(payment: Payment | PaymentWithRelations): s
   if (payment.consultationId) return 'Consulta Médica';
   if (payment.saleId) return 'Venta Directa';
   if (payment.hospitalizationId) return 'Hospitalización';
+  if (payment.surgeryId) return 'Cirugía';
+  // @ts-expect-error - radiologyOrder existe en la interfaz con relaciones
+  if (payment.radiologyOrder) return 'Rayos X / Radiología';
   return 'Sin origen';
 }

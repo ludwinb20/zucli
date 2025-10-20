@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { SpinnerWithText } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -261,10 +262,7 @@ export default function InvoicesPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center space-y-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E9589]"></div>
-                <p className="text-gray-600 text-sm">Cargando facturas...</p>
-              </div>
+              <SpinnerWithText text="Cargando facturas..." />
             </div>
           ) : invoices.length === 0 ? (
             <div className="text-center py-12">

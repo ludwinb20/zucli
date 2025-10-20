@@ -13,6 +13,9 @@ interface PriceSearchProps {
   className?: string;
   specialtyId?: string;
   type?: 'medicamento' | 'servicio' | 'all';
+  includeTags?: string[];
+  excludeTags?: string[];
+  prioritizeTags?: string[];
 }
 
 export function PriceSearch({ 
@@ -23,7 +26,10 @@ export function PriceSearch({
   error,
   className = "",
   specialtyId,
-  type = 'all'
+  type = 'all',
+  includeTags,
+  excludeTags,
+  prioritizeTags
 }: PriceSearchProps) {
   const [selectedPriceName, setSelectedPriceName] = useState<string>('');
   const [defaultOptions, setDefaultOptions] = useState<SearchableSelectOption[]>([]);
@@ -38,6 +44,15 @@ export function PriceSearch({
         }
         if (type !== 'all') {
           url += `&type=${type}`;
+        }
+        if (includeTags && includeTags.length > 0) {
+          url += `&includeTags=${includeTags.join(',')}`;
+        }
+        if (excludeTags && excludeTags.length > 0) {
+          url += `&excludeTags=${excludeTags.join(',')}`;
+        }
+        if (prioritizeTags && prioritizeTags.length > 0) {
+          url += `&prioritizeTags=${prioritizeTags.join(',')}`;
         }
 
         const response = await fetch(url);
@@ -65,7 +80,7 @@ export function PriceSearch({
     };
 
     loadDefaultPrices();
-  }, [specialtyId, type]);
+  }, [specialtyId, type, includeTags, excludeTags, prioritizeTags]);
 
   // Obtener nombre del precio seleccionado
   useEffect(() => {
@@ -96,6 +111,15 @@ export function PriceSearch({
       }
       if (type !== 'all') {
         url += `&type=${type}`;
+      }
+      if (includeTags && includeTags.length > 0) {
+        url += `&includeTags=${includeTags.join(',')}`;
+      }
+      if (excludeTags && excludeTags.length > 0) {
+        url += `&excludeTags=${excludeTags.join(',')}`;
+      }
+      if (prioritizeTags && prioritizeTags.length > 0) {
+        url += `&prioritizeTags=${prioritizeTags.join(',')}`;
       }
 
       const response = await fetch(url);

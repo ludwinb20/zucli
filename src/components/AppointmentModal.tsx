@@ -8,9 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { PatientSearch } from '@/components/common/PatientSearch';
+import { PatientModal } from '@/components/PatientModal';
 import PatientAppointmentModal from '@/components/PatientAppointmentModal';
 import { AppointmentModalProps, AppointmentStatus } from '@/types/appointments';
 import { SpecialtyDatePicker } from '@/components/SpecialtyDatePicker';
+import { Patient } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AppointmentModal({
   isOpen,
@@ -31,8 +34,10 @@ export default function AppointmentModal({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPatientAppointmentModal, setShowPatientAppointmentModal] = useState(false);
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [availableDays, setAvailableDays] = useState<number[]>([]);
   const [selectedDateObj, setSelectedDateObj] = useState<Date | undefined>(undefined);
+  const { toast } = useToast();
 
   // Cargar días disponibles cuando se selecciona especialidad
   useEffect(() => {
@@ -173,6 +178,43 @@ export default function AppointmentModal({
     window.location.reload();
   };
 
+  // Nuevo handler para crear paciente desde PatientModal
+  const handlePatientCreated = async (data: unknown) => {
+    try {
+      const response = await fetch("/api/patients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Error al crear paciente");
+
+      const newPatient = await response.json();
+      
+      // Seleccionar automáticamente el nuevo paciente
+      setFormData(prev => ({
+        ...prev,
+        patientId: newPatient.id
+      }));
+      
+      // Cerrar el modal de paciente
+      setIsPatientModalOpen(false);
+      
+      // Mostrar toast de éxito
+      toast({
+        title: "Paciente creado",
+        description: "El paciente ha sido agregado exitosamente"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo crear el paciente",
+        variant: "error",
+      });
+      throw error; // Re-throw para que PatientModal maneje el error
+    }
+  };
+
 
 
   return (
@@ -200,7 +242,7 @@ export default function AppointmentModal({
                 placeholder="Seleccionar paciente..."
                 label="Paciente *"
                 error={errors.patientId}
-                onAddNewPatient={handleAddNewPatient}
+                onAddNewPatient={() => setIsPatientModalOpen(true)}
               />
             </div>
 
@@ -308,6 +350,14 @@ export default function AppointmentModal({
         onSuccess={handlePatientAppointmentCreated}
         specialties={specialties.map(s => ({ id: s.id, name: s.name }))}
         isLoading={isLoading}
+      />
+
+      {/* Modal anidado para crear paciente */}
+      <PatientModal
+        isOpen={isPatientModalOpen}
+        onClose={() => setIsPatientModalOpen(false)}
+        patient={null}
+        onSave={handlePatientCreated}
       />
     </Dialog>
   );

@@ -7,9 +7,6 @@ const nextConfig: NextConfig = {
     });
     return config;
   },
-  experimental: {
-    esmExternals: 'loose'
-  },
   images: {
     domains: ['localhost'],
   },

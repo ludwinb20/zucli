@@ -9,8 +9,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Hospital Zuniga",
+  title: "Clinica Zuniga",
   description: "Sistema de gestión médica para consultas externas y rayos X",
+  icons: {
+    icon: "/assets/logo.png",
+    shortcut: "/assets/logo.png",
+  },
 };
 
 export default function RootLayout({
