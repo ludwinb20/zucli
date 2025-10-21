@@ -83,6 +83,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.username = token.username as string;
         session.user.role = token.role as AuthRole;
+        session.user.specialty = token.specialty as { id: string; name: string } | undefined;
       }
       return session;
     },

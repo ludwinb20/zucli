@@ -8,6 +8,10 @@ declare module 'next-auth' {
         id: string;
         name: string;
       };
+      specialty?: {
+        id: string;
+        name: string;
+      };
     };
   }
 
@@ -19,6 +23,10 @@ declare module 'next-auth' {
       id: string;
       name: string;
     };
+    specialty?: {
+      id: string;
+      name: string;
+    };
   }
 }
 
@@ -27,6 +35,10 @@ declare module 'next-auth/jwt' {
     id: string;
     username: string;
     role: {
+      id: string;
+      name: string;
+    };
+    specialty?: {
       id: string;
       name: string;
     };

@@ -17,6 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     username: session.user.username,
     name: session.user.name,
     role: session.user.role,
+    specialty: session.user.specialty,
   } : null;
 
   const login = async (username: string, password: string): Promise<boolean> => {

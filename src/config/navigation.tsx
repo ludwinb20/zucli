@@ -31,7 +31,7 @@ export const navigationItems: NavigationItem[] = [
     name: "Citas",
     href: "/appointments",
     icon: <Calendar size={20} />,
-    roles: ["especialista", "recepcion", "radiologo", "admin"],
+    roles: ["especialista", "recepcion", "admin"],
   },
   {
     name: "Consulta Externa",
