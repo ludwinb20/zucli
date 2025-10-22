@@ -139,53 +139,51 @@ export default function AdminPricesPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, typeFilter, tagFilter, specialtyFilter, tags, toast]);
-
-  const loadInitialData = useCallback(async () => {
-    try {
-      // Cargar tags
-      const tagsRes = await fetch("/api/tags");
-      if (tagsRes.ok) {
-        const tagsData = await tagsRes.json();
-        setTags(tagsData.tags || []);
-      }
-
-      // Cargar especialidades
-      const specialtiesRes = await fetch("/api/specialties");
-      if (specialtiesRes.ok) {
-        const specialtiesData = await specialtiesRes.json();
-        setSpecialties(specialtiesData.specialties || []);
-      }
-
-      // Cargar precios
-      await loadPrices();
-    } catch (error) {
-      console.error("Error loading data:", error);
-      toast({
-        title: "Error",
-        description: "Error al cargar los datos",
-        variant: "error",
-      });
-    }
-  }, [toast, loadPrices]);
+  }, [searchTerm, typeFilter, tagFilter, specialtyFilter, tags]); // Removido toast
 
   // Cargar datos iniciales
   useEffect(() => {
-    if (user?.role?.name === "admin") {
-      loadInitialData();
-    }
-  }, [user, loadInitialData]);
+    const loadInitialData = async () => {
+      if (user?.role?.name !== "admin") return;
+      
+      try {
+        // Cargar tags
+        const tagsRes = await fetch("/api/tags");
+        if (tagsRes.ok) {
+          const tagsData = await tagsRes.json();
+          setTags(tagsData.tags || []);
+        }
+
+        // Cargar especialidades
+        const specialtiesRes = await fetch("/api/specialties");
+        if (specialtiesRes.ok) {
+          const specialtiesData = await specialtiesRes.json();
+          setSpecialties(specialtiesData.specialties || []);
+        }
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+        toast({
+          title: "Error",
+          description: "Error al cargar los datos",
+          variant: "error",
+        });
+      }
+    };
+
+    loadInitialData();
+  }, [user, toast]); // Solo se ejecuta una vez al montar y cuando cambia user
 
   // Recargar precios cuando cambien los filtros (con debounce para búsqueda)
   useEffect(() => {
-    if (user?.role?.name === "admin") {
+    if (user?.role?.name === "admin" && tags.length > 0) {
       const timeoutId = setTimeout(() => {
         loadPrices();
       }, searchTerm ? 500 : 0); // Debounce de 500ms solo para búsqueda
 
       return () => clearTimeout(timeoutId);
     }
-  }, [searchTerm, typeFilter, tagFilter, specialtyFilter, user, loadPrices]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, typeFilter, tagFilter, specialtyFilter, user, tags.length]);
 
   const openCreateModal = () => {
     setEditingPrice(null);

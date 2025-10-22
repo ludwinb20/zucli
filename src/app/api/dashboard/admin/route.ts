@@ -64,6 +64,30 @@ export async function GET() {
       },
     });
 
+    // Citas de los últimos 7 días (para el gráfico)
+    const last7DaysData = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const endOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+      
+      const count = await prisma.appointment.count({
+        where: {
+          appointmentDate: {
+            gte: startOfDate,
+            lte: endOfDate,
+          },
+        },
+      });
+      
+      last7DaysData.push({
+        date: date.toLocaleDateString('es-HN', { day: '2-digit', month: 'short' }),
+        value: count,
+        label: date.toLocaleDateString('es-HN'),
+      });
+    }
+
     // Ingresos (pagos con status 'paid')
     const paymentsToday = await prisma.payment.aggregate({
       where: {
@@ -177,6 +201,7 @@ export async function GET() {
       appointments: {
         today: appointmentsByStatus,
         thisWeek: appointmentsThisWeek,
+        last7Days: last7DaysData,
       },
       revenue: {
         today: paymentsToday._sum.total || 0,

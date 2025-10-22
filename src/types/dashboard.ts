@@ -14,6 +14,7 @@ export interface AdminStats {
       cancelled: number;
     };
     thisWeek: number;
+    last7Days: ChartDataPoint[];
   };
   revenue: {
     today: number;

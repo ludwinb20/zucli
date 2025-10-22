@@ -75,17 +75,8 @@ export function AdminDashboard() {
     },
   ];
 
-  // Generar datos de gráfico (últimos 7 días)
-  const last7Days: ChartDataPoint[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    last7Days.push({
-      date: date.toLocaleDateString('es-HN', { day: '2-digit', month: 'short' }),
-      value: Math.floor(Math.random() * 20) + 5, // Placeholder
-      label: date.toLocaleDateString('es-HN'),
-    });
-  }
+  // Usar datos reales del API
+  const last7Days = stats.appointments.last7Days;
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">

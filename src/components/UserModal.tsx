@@ -63,7 +63,7 @@ export function UserModal({ isOpen, onClose, user, onSuccess }: UserModalProps) 
       const response = await fetch("/api/specialties");
       if (response.ok) {
         const data = await response.json();
-        setSpecialties(data);
+        setSpecialties(data.specialties || []);
       }
     } catch (error) {
       console.error("Error fetching specialties:", error);

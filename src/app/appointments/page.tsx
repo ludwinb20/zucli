@@ -466,10 +466,10 @@ export default function AppointmentsPage() {
 
     let matchesDate = true;
     if (dateFilter) {
+      // Extraer solo la parte de fecha (YYYY-MM-DD) para evitar problemas de timezone
       const appointmentDate = new Date(appointment.appointmentDate);
-      const filterDate = new Date(dateFilter);
-      matchesDate =
-        appointmentDate.toDateString() === filterDate.toDateString();
+      const appointmentDateStr = `${appointmentDate.getFullYear()}-${String(appointmentDate.getMonth() + 1).padStart(2, '0')}-${String(appointmentDate.getDate()).padStart(2, '0')}`;
+      matchesDate = appointmentDateStr === dateFilter;
     }
 
     return matchesSearch && matchesDate;

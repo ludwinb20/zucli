@@ -242,7 +242,7 @@ export function CompactItemSelector({
                   <Input
                     type="number"
                     min="1"
-                    value={item.quantity}
+                    value={item.quantity || 1}
                     onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 1)}
                     className="w-14 h-7 text-xs text-center"
                   />
