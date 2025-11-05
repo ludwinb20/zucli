@@ -106,9 +106,10 @@ export interface TransactionItemWithRelations {
   id: string;
   sourceType: string;
   sourceId: string;
-  serviceItemId: string;
+  serviceItemId: string | null;
   variantId: string | null;
   quantity: number;
+  isCustom: boolean;
   nombre: string;
   precioUnitario: number;
   descuento: number;
@@ -122,7 +123,7 @@ export interface TransactionItemWithRelations {
     name: string;
     type: string;
     basePrice: number;
-  };
+  } | null;
   variant: {
     id: string;
     name: string;

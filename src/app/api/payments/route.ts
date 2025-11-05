@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
               serviceItem: { select: { id: true, name: true, type: true, basePrice: true } },
               variant: { select: { id: true, name: true, price: true } }
             }
-          });
+          }) as TransactionItemWithRelations[];
         } else if (payment.saleId) {
           items = await prisma.transactionItem.findMany({
             where: {
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
               serviceItem: { select: { id: true, name: true, type: true, basePrice: true } },
               variant: { select: { id: true, name: true, price: true } }
             }
-          });
+          }) as TransactionItemWithRelations[];
         } else if (payment.hospitalizationId) {
           items = await prisma.transactionItem.findMany({
             where: {
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
               serviceItem: { select: { id: true, name: true, type: true, basePrice: true } },
               variant: { select: { id: true, name: true, price: true } }
             }
-          });
+          }) as TransactionItemWithRelations[];
         } else if (payment.surgeryId) {
           items = await prisma.transactionItem.findMany({
             where: {
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
               serviceItem: { select: { id: true, name: true, type: true, basePrice: true } },
               variant: { select: { id: true, name: true, price: true } }
             }
-          });
+          }) as TransactionItemWithRelations[];
         }
 
         return {
