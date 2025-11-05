@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Package, Save, X, AlertTriangle } from "lucide-react";
+import { Package, Save, X, AlertTriangle, Plus } from "lucide-react";
 import { PaymentWithRelations } from "@/types/payments";
 import { TreatmentItem } from "@/types/components";
 import { TreatmentItemsSelector } from "@/components/TreatmentItemsSelector";
@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { InlineSpinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import CustomItemModal from "@/components/CustomItemModal";
 
 interface EditPaymentItemsModalProps {
   isOpen: boolean;
@@ -43,6 +44,8 @@ export default function EditPaymentItemsModal({
   const [items, setItems] = useState<TreatmentItem[]>([]);
   const [patientId, setPatientId] = useState<string>("");
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState(false);
+  const [editingCustomItem, setEditingCustomItem] = useState<TreatmentItem | null>(null);
   const [error, setError] = useState("");
   const { toast } = useToast();
 
@@ -55,13 +58,14 @@ export default function EditPaymentItemsModal({
     if (payment && payment.items) {
       const mappedItems: TreatmentItem[] = payment.items.map((item) => ({
         id: item.id,
-        type: item.variantId ? 'variant' : 'price',
-        priceId: item.serviceItemId,
+        type: item.isCustom ? 'custom' : (item.variantId ? 'variant' : 'price'),
+        priceId: item.serviceItemId || null,
         variantId: item.variantId || undefined,
         name: item.nombre, // Usar snapshot
         description: item.notes || undefined,
         price: item.precioUnitario, // Usar snapshot
         quantity: item.quantity,
+        isCustom: item.isCustom || false,
       }));
       setItems(mappedItems);
     }
@@ -108,11 +112,12 @@ export default function EditPaymentItemsModal({
         body: JSON.stringify({
           patientId: patientId,
           items: items.map(item => ({
-            priceId: item.priceId,
+            priceId: item.isCustom ? null : item.priceId || null,
             variantId: item.variantId,
             nombre: item.name,
             precioUnitario: item.price,
             quantity: item.quantity,
+            isCustom: item.isCustom || false,
           })),
         }),
       });
@@ -147,6 +152,46 @@ export default function EditPaymentItemsModal({
       setError("");
       onClose();
     }
+  };
+
+  // Handler para agregar item variable
+  const handleAddCustomItem = (itemData: { name: string; price: number; quantity: number }) => {
+    const newItem: TreatmentItem = {
+      id: `custom-${Date.now()}`,
+      type: 'custom',
+      priceId: null,
+      name: itemData.name,
+      price: itemData.price,
+      quantity: itemData.quantity,
+      isCustom: true,
+    };
+    setItems([...items, newItem]);
+    setIsCustomItemModalOpen(false);
+    setEditingCustomItem(null);
+  };
+
+  // Handler para editar item variable
+  const handleEditCustomItem = (item: TreatmentItem) => {
+    setEditingCustomItem(item);
+    setIsCustomItemModalOpen(true);
+  };
+
+  // Handler para actualizar item variable editado
+  const handleUpdateCustomItem = (itemData: { name: string; price: number; quantity: number }) => {
+    if (!editingCustomItem) return;
+
+    setItems(items.map(item =>
+      item.id === editingCustomItem.id
+        ? { ...item, name: itemData.name, price: itemData.price, quantity: itemData.quantity }
+        : item
+    ));
+    setIsCustomItemModalOpen(false);
+    setEditingCustomItem(null);
+  };
+
+  // Handler para eliminar item
+  const handleRemoveItem = (itemId: string) => {
+    setItems(items.filter(item => item.id !== itemId));
   };
 
   // Handler para crear paciente
@@ -256,15 +301,81 @@ export default function EditPaymentItemsModal({
           {/* Editor de Items */}
           <Card className="bg-white shadow-sm border border-gray-200">
             <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-medium text-gray-700">
-                Items del Pago
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-medium text-gray-700">
+                  Items del Pago
+                </CardTitle>
+                {canEdit && isFromSale && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingCustomItem(null);
+                      setIsCustomItemModalOpen(true);
+                    }}
+                    className="border-[#2E9589] text-[#2E9589] hover:bg-[#2E9589]/10"
+                  >
+                    <Plus size={16} className="mr-2" />
+                    Agregar Item Variable
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="pt-0 px-6 pb-6">
               <TreatmentItemsSelector
-                items={items}
-                onChange={setItems}
+                items={items.filter(item => !item.isCustom)}
+                onChange={(newItems) => {
+                  const customItems = items.filter(item => item.isCustom);
+                  setItems([...customItems, ...newItems]);
+                }}
               />
+              
+              {/* Lista de items variables */}
+              {items.filter(item => item.isCustom).length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Items Variables
+                  </Label>
+                  <div className="space-y-2">
+                    {items.filter(item => item.isCustom).map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                          <p className="text-xs text-gray-500">
+                            Cantidad: {item.quantity} × L {item.price.toFixed(2)} = L {(item.quantity * item.price).toFixed(2)}
+                          </p>
+                        </div>
+                        {canEdit && isFromSale && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditCustomItem(item)}
+                              className="text-[#2E9589] hover:text-[#2E9589]/80"
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <X size={16} />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -308,6 +419,23 @@ export default function EditPaymentItemsModal({
         onClose={() => setIsPatientModalOpen(false)}
         onSave={handlePatientCreated}
       />
+
+      {/* Modal para agregar/editar item variable */}
+      {canEdit && isFromSale && (
+        <CustomItemModal
+          isOpen={isCustomItemModalOpen}
+          onClose={() => {
+            setIsCustomItemModalOpen(false);
+            setEditingCustomItem(null);
+          }}
+          onSave={editingCustomItem ? handleUpdateCustomItem : handleAddCustomItem}
+          initialItem={editingCustomItem ? {
+            name: editingCustomItem.name,
+            price: editingCustomItem.price,
+            quantity: editingCustomItem.quantity,
+          } : null}
+        />
+      )}
     </Dialog>
   );
 }

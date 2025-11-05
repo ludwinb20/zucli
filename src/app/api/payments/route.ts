@@ -226,16 +226,64 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Validar items antes de crear
+    for (const item of items) {
+      const isCustom = item.isCustom || false;
+      
+      if (isCustom) {
+        // Item variable: no debe tener priceId
+        if (item.priceId) {
+          return NextResponse.json({ 
+            error: 'Los items variables no pueden tener un serviceItemId asociado' 
+          }, { status: 400 });
+        }
+        // Validar campos requeridos para items variables
+        if (!item.nombre || item.nombre.trim() === '') {
+          return NextResponse.json({ 
+            error: 'Los items variables deben tener una descripción' 
+          }, { status: 400 });
+        }
+        if (!item.precioUnitario || item.precioUnitario <= 0) {
+          return NextResponse.json({ 
+            error: 'Los items variables deben tener un precio mayor a 0' 
+          }, { status: 400 });
+        }
+        if (!item.quantity || item.quantity <= 0) {
+          return NextResponse.json({ 
+            error: 'Los items variables deben tener una cantidad mayor a 0' 
+          }, { status: 400 });
+        }
+      } else {
+        // Item normal: debe tener priceId
+        if (!item.priceId) {
+          return NextResponse.json({ 
+            error: 'Los items normales deben tener un serviceItemId asociado' 
+          }, { status: 400 });
+        }
+        // Verificar que el serviceItem existe
+        const serviceItem = await prisma.serviceItem.findUnique({
+          where: { id: item.priceId }
+        });
+        if (!serviceItem) {
+          return NextResponse.json({ 
+            error: `ServiceItem con ID ${item.priceId} no encontrado` 
+          }, { status: 404 });
+        }
+      }
+    }
+
     // Crear los TransactionItems
     const createdItems = await Promise.all(
       items.map(async (item) => {
+        const isCustom = item.isCustom || false;
         return await prisma.transactionItem.create({
           data: {
             sourceType: 'sale',
             sourceId: sale.id,
-            serviceItemId: item.priceId,
+            serviceItemId: isCustom ? null : item.priceId!,
             variantId: item.variantId || null,
             quantity: item.quantity,
+            isCustom,
             nombre: item.nombre,
             precioUnitario: item.precioUnitario,
             descuento: 0,

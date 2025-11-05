@@ -226,13 +226,14 @@ export interface ExamenFisicoModalProps {
 // Consulta Data Types
 export interface TreatmentItem {
   id: string;
-  type: 'price' | 'variant';
-  priceId: string;
+  type: 'price' | 'variant' | 'custom';
+  priceId?: string | null;
   variantId?: string;
   name: string;
   description?: string;
   price: number;
   quantity: number;
+  isCustom?: boolean; // true si es un item variable creado por el usuario
 }
 
 export interface ConsultaData {

@@ -116,9 +116,10 @@ model TransactionItem {
   sourceType    String   // "consultation", "sale", "hospitalization", "surgery"
   sourceId      String   // ID de la fuente (consultationId, saleId, etc.)
   
-  serviceItemId String
+  serviceItemId String?  // Nullable para permitir items variables personalizados
   variantId     String?
   quantity      Int      @default(1)
+  isCustom      Boolean  @default(false) // true si es un item variable creado por el usuario
   
   // Snapshot de datos en el momento de la transacción
   nombre         String   // Nombre del medicamento/servicio
@@ -134,7 +135,7 @@ model TransactionItem {
   updatedAt     DateTime @updatedAt
   
   // Relaciones
-  serviceItem ServiceItem         @relation(fields: [serviceItemId], references: [id])
+  serviceItem ServiceItem?        @relation(fields: [serviceItemId], references: [id])
   variant     ServiceItemVariant? @relation(fields: [variantId], references: [id])
   
   @@index([sourceType, sourceId])

@@ -10,9 +10,10 @@ export interface TransactionItem {
   id: string;
   sourceType: TransactionSourceType;
   sourceId: string;
-  serviceItemId: string;
+  serviceItemId: string | null;
   variantId?: string | null;
   quantity: number;
+  isCustom: boolean;
   nombre: string;
   precioUnitario: number;
   descuento: number;
@@ -30,7 +31,7 @@ export interface TransactionItemWithRelations extends TransactionItem {
     name: string;
     type: string;
     basePrice: number;
-  };
+  } | null;
   variant?: {
     id: string;
     name: string;
@@ -40,7 +41,7 @@ export interface TransactionItemWithRelations extends TransactionItem {
 
 // Data para crear item de transacción
 export interface CreateTransactionItemData {
-  serviceItemId: string;
+  serviceItemId?: string | null;
   variantId?: string | null;
   quantity: number;
   nombre: string;
@@ -49,6 +50,7 @@ export interface CreateTransactionItemData {
   total: number;
   addedBy?: string;
   notes?: string;
+  isCustom?: boolean;
 }
 
 // ============================================

@@ -108,11 +108,12 @@ export interface PaymentWithRelations extends Payment {
 
 // Item para crear pago (compatibilidad)
 export interface CreatePaymentItemData {
-  priceId: string;         // Se mapea a serviceItemId
+  priceId?: string | null; // Se mapea a serviceItemId (opcional para items variables)
   variantId?: string;
   nombre: string;
   precioUnitario: number;
   quantity: number;
+  isCustom?: boolean; // true si es un item variable creado por el usuario
 }
 
 // Datos para crear un pago directo (crea Sale automáticamente)
@@ -141,11 +142,12 @@ export interface UpdatePaymentData {
   status?: PaymentStatus;
   notes?: string;
   items?: Array<{
-    priceId: string;
+    priceId?: string | null;
     variantId?: string;
     nombre: string;
     precioUnitario: number;
     quantity: number;
+    isCustom?: boolean;
   }>;
   discountValue?: number; // Valor del descuento (porcentaje o monto)
   discountType?: 'percentage' | 'absolute'; // Tipo de descuento
