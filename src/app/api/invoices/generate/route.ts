@@ -90,8 +90,19 @@ export async function POST(request: NextRequest) {
 
     // Calcular montos usando funciones validadas
     const total = payment.total;
-    const { subtotal, isv } = extractISVFromTotal(total);
-    const descuentos = 0; // Por ahora sin descuentos
+    
+    // Calcular subtotal de items
+    const subtotalItems = items.reduce((sum, item) => sum + item.total, 0);
+    
+    // Obtener descuentos del pago
+    const descuentos = payment.discountAmount || 0;
+    const subtotalConDescuento = subtotalItems - descuentos;
+    
+    // Calcular ISV sobre el subtotal con descuento
+    const isv = subtotalConDescuento * 0.15;
+    
+    // El subtotal usado en la factura es el subtotal de items (antes de descuento)
+    const subtotal = subtotalItems;
 
     if (useRTN && clienteRTN) {
       // ============================================

@@ -31,10 +31,12 @@ import {
   User,
   Calendar,
   FileText,
+  Printer,
 } from "lucide-react";
 import { RadiologyOrderWithRelations } from "@/types/radiology";
 import { useToast } from "@/hooks/use-toast";
 import RadiologyResultsModal from "@/components/RadiologyResultsModal";
+import PrintRadiologyReportModal from "@/components/radiology/PrintRadiologyReportModal";
 
 export default function RadiologyPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -51,6 +53,8 @@ export default function RadiologyPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<RadiologyOrderWithRelations | null>(null);
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [orderToPrint, setOrderToPrint] = useState<RadiologyOrderWithRelations | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -111,6 +115,11 @@ export default function RadiologyPage() {
   const handleOpenResults = (order: RadiologyOrderWithRelations) => {
     setSelectedOrder(order);
     setIsResultsModalOpen(true);
+  };
+
+  const handlePrintOrder = (order: RadiologyOrderWithRelations) => {
+    setOrderToPrint(order);
+    setIsPrintModalOpen(true);
   };
 
   const handleSaveResults = async (orderId: string, data: {
@@ -289,15 +298,28 @@ export default function RadiologyPage() {
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => handleOpenResults(order)}
-                    size="sm"
-                    variant={order.status === 'pending' ? 'default' : 'outline'}
-                    className={order.status === 'pending' ? 'bg-[#2E9589] hover:bg-[#2E9589]/90 text-white' : ''}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    {order.status === 'pending' ? 'Iniciar' : 'Ver Detalles'}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {order.status === 'completed' && (
+                      <Button
+                        onClick={() => handlePrintOrder(order)}
+                        size="sm"
+                        variant="outline"
+                        className="border-[#2E9589] text-[#2E9589] hover:bg-[#2E9589]/10"
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        Imprimir
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => handleOpenResults(order)}
+                      size="sm"
+                      variant={order.status === 'pending' ? 'default' : 'outline'}
+                      className={order.status === 'pending' ? 'bg-[#2E9589] hover:bg-[#2E9589]/90 text-white' : ''}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      {order.status === 'pending' ? 'Iniciar' : 'Ver Detalles'}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -340,6 +362,7 @@ export default function RadiologyPage() {
         )}
       </Card>
 
+      {/* Modal de Resultados */}
       <RadiologyResultsModal
         isOpen={isResultsModalOpen}
         onClose={() => {
@@ -348,6 +371,16 @@ export default function RadiologyPage() {
         }}
         order={selectedOrder}
         onSave={handleSaveResults}
+      />
+
+      {/* Modal de Impresión */}
+      <PrintRadiologyReportModal
+        isOpen={isPrintModalOpen}
+        onClose={() => {
+          setIsPrintModalOpen(false);
+          setOrderToPrint(null);
+        }}
+        order={orderToPrint}
       />
     </div>
   );

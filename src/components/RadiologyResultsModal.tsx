@@ -12,8 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { RadiologyOrderWithRelations } from "@/types/radiology";
-import { Save, X, CheckCircle2, Edit2, User, Calendar, FileText } from "lucide-react";
+import { Save, X, CheckCircle2, Edit2, User, Calendar, FileText, Printer } from "lucide-react";
 import { InlineSpinner } from "@/components/ui/spinner";
+import PrintRadiologyReportModal from "./radiology/PrintRadiologyReportModal";
 
 interface RadiologyResultsModalProps {
   isOpen: boolean;
@@ -38,6 +39,8 @@ export default function RadiologyResultsModal({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [orderForPrint, setOrderForPrint] = useState<RadiologyOrderWithRelations | null>(null);
 
   useEffect(() => {
     if (order) {
@@ -51,11 +54,11 @@ export default function RadiologyResultsModal({
     }
   }, [order]);
 
-  const handleSubmit = async (markAsCompleted: boolean = false) => {
+  const handleSubmit = async (markAsCompleted: boolean = false, shouldPrint: boolean = false) => {
     if (!order) return;
 
-    // Validar que protocolo y cantidad estén presentes si se va a marcar como completado
-    if (markAsCompleted && (!protocol.trim() || !quantity.trim())) {
+    // Validar que haya notas si se va a imprimir
+    if (shouldPrint && !notes.trim()) {
       return;
     }
 
@@ -81,6 +84,20 @@ export default function RadiologyResultsModal({
       
       if (markAsCompleted) {
         setIsEditing(false);
+        
+        // Si se debe imprimir, crear un order actualizado con los datos guardados
+        if (shouldPrint) {
+          const updatedOrder: RadiologyOrderWithRelations = {
+            ...order,
+            findings: protocol,
+            diagnosis: quantity,
+            notes: notes,
+            status: 'completed' as const,
+            completedAt: new Date(),
+          };
+          setOrderForPrint(updatedOrder);
+          setIsPrintModalOpen(true);
+        }
       }
       
       if (!markAsCompleted) {
@@ -99,6 +116,8 @@ export default function RadiologyResultsModal({
       setQuantity("");
       setNotes("");
       setIsEditing(false);
+      setOrderForPrint(null);
+      setIsPrintModalOpen(false);
       onClose();
     }
   };
@@ -196,18 +215,19 @@ export default function RadiologyResultsModal({
             />
           </div>
 
-          {/* Cantidad */}
+          {/* Impresión Diagnóstica */}
           <div className="space-y-2">
             <Label htmlFor="quantity">
-              Cantidad *
+              Impresión Diagnóstica *
             </Label>
-            <Input
+            <Textarea
               id="quantity"
-              type="text"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              placeholder="Ej: 2"
+              placeholder="Descripción de la impresión diagnóstica..."
+              rows={4}
               disabled={!isEditing || saving}
+              className="resize-none"
             />
           </div>
 
@@ -244,44 +264,46 @@ export default function RadiologyResultsModal({
 
         {/* Footer con Botones */}
         <div className="flex justify-end gap-3 pt-4">
-          {/* Botón Cerrar/Cancelar */}
-          {(!isCompleted || !isEditing) && (
+          {/* Botón Cancelar - Solo cuando está editando */}
+          {isEditing && (
             <Button
               type="button"
               variant="outline"
-              onClick={handleClose}
+              onClick={isCompleted ? handleCancelEdit : handleClose}
               disabled={saving}
             >
-              {isCompleted ? 'Cerrar' : 'Cancelar'}
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
             </Button>
           )}
 
           {/* Botones cuando está completado pero NO editando */}
           {isCompleted && !isEditing && (
-            <Button
-              type="button"
-              onClick={handleEdit}
-              className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
-            >
-              <Edit2 className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsPrintModalOpen(true)}
+                className="border-[#2E9589] text-[#2E9589] hover:bg-[#2E9589]/10"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir
+              </Button>
+              <Button
+                type="button"
+                onClick={handleEdit}
+                className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+            </>
           )}
 
           {/* Botones cuando está editando (pendiente o completado en edición) */}
           {isEditing && (
             <>
-              {isCompleted && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCancelEdit}
-                  disabled={saving}
-                >
-                  Cancelar Edición
-                </Button>
-              )}
-
+              {/* Botón Guardar - Solo para órdenes pendientes */}
               {!isCompleted && (
                 <Button
                   type="button"
@@ -294,14 +316,15 @@ export default function RadiologyResultsModal({
                   ) : (
                     <Save className="h-4 w-4 mr-2" />
                   )}
-                  Guardar Borrador
+                  Guardar
                 </Button>
               )}
 
+              {/* Botón Guardar e Imprimir - Solo cuando se completa */}
               <Button
                 type="button"
-                onClick={() => handleSubmit(true)}
-                disabled={saving || !protocol.trim() || !quantity.trim()}
+                onClick={() => handleSubmit(true, true)}
+                disabled={saving || !notes.trim()}
                 className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
               >
                 {saving ? (
@@ -309,12 +332,24 @@ export default function RadiologyResultsModal({
                 ) : (
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                 )}
-                {isCompleted ? 'Guardar Cambios' : 'Completar Estudio'}
+                {isCompleted ? 'Guardar Cambios' : 'Guardar e Imprimir'}
               </Button>
             </>
           )}
         </div>
       </DialogContent>
+
+      {/* Modal de Impresión */}
+      {(orderForPrint || order) && (
+        <PrintRadiologyReportModal
+          isOpen={isPrintModalOpen}
+          onClose={() => {
+            setIsPrintModalOpen(false);
+            setOrderForPrint(null);
+          }}
+          order={orderForPrint || order}
+        />
+      )}
     </Dialog>
   );
 }

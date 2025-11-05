@@ -18,6 +18,9 @@ import { Package, Save, X, AlertTriangle } from "lucide-react";
 import { PaymentWithRelations } from "@/types/payments";
 import { TreatmentItem } from "@/types/components";
 import { TreatmentItemsSelector } from "@/components/TreatmentItemsSelector";
+import { PatientSearch } from "@/components/common/PatientSearch";
+import { PatientModal } from "@/components/PatientModal";
+import { Label } from "@/components/ui/label";
 import { InlineSpinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +41,9 @@ export default function EditPaymentItemsModal({
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<TreatmentItem[]>([]);
+  const [patientId, setPatientId] = useState<string>("");
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [error, setError] = useState("");
   const { toast } = useToast();
 
   // Validar permisos
@@ -59,6 +65,10 @@ export default function EditPaymentItemsModal({
       }));
       setItems(mappedItems);
     }
+    // Inicializar el patientId con el paciente actual
+    if (payment?.patientId) {
+      setPatientId(payment.patientId);
+    }
   }, [payment]);
 
   if (!payment) return null;
@@ -66,9 +76,22 @@ export default function EditPaymentItemsModal({
   const handleSave = async () => {
     try {
       setSaving(true);
+      setError("");
+
+      // Validar que hay paciente seleccionado
+      if (!patientId) {
+        setError("Debe seleccionar un paciente");
+        toast({
+          title: "Error",
+          description: "Debe seleccionar un paciente",
+          variant: "error",
+        });
+        return;
+      }
 
       // Validar que hay items
       if (items.length === 0) {
+        setError("Debe tener al menos un item en el pago");
         toast({
           title: "Error",
           description: "Debe tener al menos un item en el pago",
@@ -83,6 +106,7 @@ export default function EditPaymentItemsModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          patientId: patientId,
           items: items.map(item => ({
             priceId: item.priceId,
             variantId: item.variantId,
@@ -94,21 +118,23 @@ export default function EditPaymentItemsModal({
       });
 
       if (!response.ok) {
-        throw new Error("Error al actualizar el pago");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al actualizar el pago");
       }
 
       toast({
         title: "Éxito",
-        description: "Items del pago actualizados correctamente",
+        description: "Pago actualizado correctamente",
         variant: "success",
       });
 
       onUpdate();
+      handleClose();
     } catch (error) {
-      console.error("Error updating payment items:", error);
+      console.error("Error updating payment:", error);
       toast({
         title: "Error",
-        description: "Error al actualizar los items del pago",
+        description: error instanceof Error ? error.message : "Error al actualizar el pago",
         variant: "error",
       });
     } finally {
@@ -118,7 +144,42 @@ export default function EditPaymentItemsModal({
 
   const handleClose = () => {
     if (!saving) {
+      setError("");
       onClose();
+    }
+  };
+
+  // Handler para crear paciente
+  const handlePatientCreated = async (data: unknown) => {
+    try {
+      const response = await fetch("/api/patients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Error al crear paciente");
+
+      const newPatient = await response.json();
+      
+      // Seleccionar automáticamente el nuevo paciente
+      setPatientId(newPatient.id);
+      
+      // Cerrar el modal de paciente
+      setIsPatientModalOpen(false);
+      
+      // Mostrar toast de éxito
+      toast({
+        title: "Paciente creado",
+        description: "El paciente ha sido agregado exitosamente"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo crear el paciente",
+        variant: "error",
+      });
+      throw error;
     }
   };
 
@@ -163,16 +224,34 @@ export default function EditPaymentItemsModal({
             </div>
           )}
 
-          {/* Información del Paciente */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Paciente</p>
-            <p className="font-semibold text-gray-900">
-              {payment.patient.firstName} {payment.patient.lastName}
-            </p>
-            <p className="text-sm text-gray-600">
-              ID: {payment.patient.identityNumber}
-            </p>
-          </div>
+          {/* Selector de Paciente */}
+          {canEdit && isFromSale && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">
+                Paciente *
+              </Label>
+              <PatientSearch
+                value={patientId}
+                onChange={setPatientId}
+                placeholder="Buscar paciente por nombre o identidad..."
+                error={error && !patientId ? "Debe seleccionar un paciente" : ""}
+                onAddNewPatient={() => setIsPatientModalOpen(true)}
+              />
+            </div>
+          )}
+
+          {/* Información del Paciente (solo lectura si no se puede editar) */}
+          {(!canEdit || !isFromSale) && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <p className="text-sm text-gray-600 mb-1">Paciente</p>
+              <p className="font-semibold text-gray-900">
+                {payment.patient.firstName} {payment.patient.lastName}
+              </p>
+              <p className="text-sm text-gray-600">
+                ID: {payment.patient.identityNumber}
+              </p>
+            </div>
+          )}
 
           {/* Editor de Items */}
           <Card className="bg-white shadow-sm border border-gray-200">
@@ -222,6 +301,13 @@ export default function EditPaymentItemsModal({
           </div>
         </div>
       </DialogContent>
+
+      {/* Modal de Crear Paciente */}
+      <PatientModal
+        isOpen={isPatientModalOpen}
+        onClose={() => setIsPatientModalOpen(false)}
+        onSave={handlePatientCreated}
+      />
     </Dialog>
   );
 }

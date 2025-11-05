@@ -957,6 +957,12 @@ model Payment {
   total         Float    // Total calculado del pago
   paymentMethod String?  // "efectivo", "tarjeta", "transferencia" (solo se define cuando se marca como pagado)
   
+  // Descuentos
+  discountAmount Float?   @default(0) // Monto del descuento calculado
+  discountType   String?  // "percentage" o "absolute"
+  discountValue  Float?   // Valor del descuento ingresado (porcentaje o monto)
+  discountReason String?  @db.Text // Razón del descuento (opcional)
+  
   // Metadata
   createdBy String?  // Usuario que creó el pago
   notes     String?  @db.Text

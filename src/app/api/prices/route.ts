@@ -330,12 +330,12 @@ export async function POST(request: NextRequest) {
       },
       include: {
         variants: true,
-        serviceItemToTags: {
+        tags: {
           include: {
             tag: true
           }
         },
-        serviceItemToSpecialties: {
+        specialties: {
           include: {
             specialty: true
           }
@@ -346,8 +346,8 @@ export async function POST(request: NextRequest) {
     // Transformar respuesta
     const transformedPrice = {
       ...price,
-      tags: (price as unknown as { serviceItemToTags: Array<{ tag: TagForSorting }> }).serviceItemToTags.map((pt) => pt.tag),
-      specialties: (price as unknown as { serviceItemToSpecialties: Array<{ specialty: SpecialtyForSorting }> }).serviceItemToSpecialties.map((ps) => ps.specialty)
+      tags: (price as unknown as { tags: Array<{ tag: TagForSorting }> }).tags.map((pt) => pt.tag),
+      specialties: (price as unknown as { specialties: Array<{ specialty: SpecialtyForSorting }> }).specialties.map((ps) => ps.specialty)
     };
 
     return NextResponse.json({ price: transformedPrice }, { status: 201 });

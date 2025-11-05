@@ -25,6 +25,7 @@ import VitalsTab from "@/components/hospitalizaciones/VitalsTab";
 import InsulinTab from "@/components/hospitalizaciones/InsulinTab";
 import IntakeOutputTab from "@/components/hospitalizaciones/IntakeOutputTab";
 import ExamenFisicoTab from "@/components/hospitalizaciones/ExamenFisicoTab";
+import MedicationTab from "@/components/hospitalizaciones/MedicationTab";
 import MedicalDocumentModal from "@/components/MedicalDocumentModal";
 
 export default function HospitalizacionDetallesPage() {
@@ -131,13 +132,16 @@ export default function HospitalizacionDetallesPage() {
         {/* Tabs */}
         <CardContent className="pt-6">
           <Tabs defaultValue="timeline" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
+            <TabsList className="grid w-full grid-cols-6 mb-6">
               <TabsTrigger value="timeline">Línea de Tiempo</TabsTrigger>
               <TabsTrigger value="preclinicas">
                 Signos Vitales ({hospitalization.preclinicas?.length || 0})
               </TabsTrigger>
               <TabsTrigger value="insulin">
                 Control de Insulina ({hospitalization.insulinControls?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="medication">
+                Medicamentos ({hospitalization.medicationControls?.length || 0})
               </TabsTrigger>
               <TabsTrigger value="intakeOutput">
                 Ingestas y Excretas ({hospitalization.intakeOutputControls?.length || 0})
@@ -178,6 +182,15 @@ export default function HospitalizacionDetallesPage() {
                 hospitalization={hospitalization}
                 isActive={isActive}
                 onRegisterInsulin={() => setIsInsulinControlModalOpen(true)}
+              />
+            </TabsContent>
+
+            {/* TAB: Control de Medicamentos */}
+            <TabsContent value="medication">
+              <MedicationTab
+                hospitalization={hospitalization}
+                isActive={isActive}
+                onRegisterMedication={() => setIsMedicationModalOpen(true)}
               />
             </TabsContent>
 

@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { CreatePaymentData } from '@/types/payments';
 import { TransactionItemWithRelations } from '@/types/api';
-import { calculateItemTotal, sumItemTotals } from '@/lib/calculations';
+import { calculateItemTotal, sumItemTotals, calculatePaymentTotal, calculateDiscount, calculateISV, roundToDecimals } from '@/lib/calculations';
 
 // GET /api/payments - Obtener pagos
 export async function GET(request: NextRequest) {
@@ -263,16 +263,21 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // Calcular total
+    // Calcular total de items (los precios ya incluyen ISV)
     const total = createdItems.reduce((sum, item) => sum + item.total, 0);
 
-    // Crear el pago referenciando la venta
+    // Crear el pago referenciando la venta (sin descuentos inicialmente)
+    // Los precios ya incluyen ISV, por lo que no agregamos ISV adicional
     const newPayment = await prisma.payment.create({
       data: {
         patientId,
         saleId: sale.id,
         total,
         status: 'pendiente',
+        discountAmount: 0,
+        discountType: null,
+        discountValue: null,
+        discountReason: null,
         createdBy: session.user.id,
       },
       include: {

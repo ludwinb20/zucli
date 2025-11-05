@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { SpinnerWithText } from "@/components/ui/spinner";
+import { SpinnerWithText, InlineSpinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -20,6 +20,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DollarSign,
   User,
@@ -41,6 +51,7 @@ import {
   HelpCircle,
   Activity,
   Scissors,
+  Trash2,
 } from "lucide-react";
 import { PaymentWithRelations, PaymentStatus } from "@/types/payments";
 import { useToast } from "@/hooks/use-toast";
@@ -66,6 +77,9 @@ export default function PaymentsPage() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isEditItemsModalOpen, setIsEditItemsModalOpen] = useState(false);
   const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState<PaymentWithRelations | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithRelations | null>(null);
   const [rangeWarnings, setRangeWarnings] = useState<string[]>([]);
 
@@ -219,6 +233,53 @@ export default function PaymentsPage() {
     });
     loadPayments(); // Recargar la lista
     handleCloseEditItems();
+  };
+
+  // Abrir modal de eliminar
+  const handleOpenDelete = (payment: PaymentWithRelations) => {
+    setPaymentToDelete(payment);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Cerrar modal de eliminar
+  const handleCloseDelete = () => {
+    setIsDeleteModalOpen(false);
+    setPaymentToDelete(null);
+  };
+
+  // Manejar eliminación de pago
+  const handleDeletePayment = async () => {
+    if (!paymentToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await fetch(`/api/payments/${paymentToDelete.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error al eliminar el pago");
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Pago eliminado exitosamente",
+        variant: "success",
+      });
+
+      loadPayments(); // Recargar la lista
+      handleCloseDelete();
+    } catch (error) {
+      console.error("Error deleting payment:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al eliminar el pago",
+        variant: "error",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Los pagos ya vienen filtrados del backend, no necesitamos filtrar en el frontend
@@ -474,14 +535,30 @@ export default function PaymentsPage() {
                   {/* Acciones */}
                   <div className="ml-4 flex-shrink-0 flex items-center space-x-2">
                     {payment.status === "pendiente" && (
-                      <Button
-                        onClick={() => handleOpenEditItems(payment)}
-                        variant="outline"
-                        size="sm"
-                        className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <>
+                        {(user?.role.name === "caja" || user?.role.name === "admin") && (
+                          <>
+                            <Button
+                              onClick={() => handleOpenEditItems(payment)}
+                              variant="outline"
+                              size="sm"
+                              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                              title="Editar items"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleOpenDelete(payment)}
+                              variant="outline"
+                              size="sm"
+                              className="border-red-300 text-red-600 hover:bg-red-50"
+                              title="Eliminar pago"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </>
                     )}
                     {payment.status === "paid" && (
                       <Button
@@ -499,6 +576,7 @@ export default function PaymentsPage() {
                       variant="outline"
                       size="sm"
                       className="border-[#2E9589] text-[#2E9589] hover:bg-[#2E9589]/10"
+                      title="Ver detalles"
                     >
                       <FileText className="h-5 w-5" />
                     </Button>
@@ -582,6 +660,59 @@ export default function PaymentsPage() {
           onSave={handlePaymentUpdated}
         />
       )}
+
+      {/* Modal de Confirmación para Eliminar */}
+      <AlertDialog open={isDeleteModalOpen} onOpenChange={(open) => {
+        if (!open && !isDeleting) {
+          handleCloseDelete();
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              ¿Eliminar pago?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-600">
+              Esta acción no se puede deshacer. Se eliminará permanentemente el pago de{" "}
+              <strong>
+                {paymentToDelete?.patient.firstName} {paymentToDelete?.patient.lastName}
+              </strong>{" "}
+              por un total de{" "}
+              <strong className="text-[#2E9589]">
+                L {paymentToDelete?.total.toFixed(2) || "0.00"}
+              </strong>
+              .
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={handleCloseDelete}
+              disabled={isDeleting}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePayment}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? (
+                <>
+                  <InlineSpinner size="sm" className="mr-2" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Eliminar
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

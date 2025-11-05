@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
   Card,
@@ -29,10 +30,13 @@ import {
   Wallet,
   CreditCard,
   ArrowRightLeft,
+  Percent,
+  DollarSign,
 } from "lucide-react";
 import { PaymentWithRelations, PaymentStatus, PaymentMethod } from "@/types/payments";
 import { InlineSpinner } from "@/components/ui/spinner";
 import { generateSimpleReceiptFromDB, generateLegalInvoiceFromDB, printThermalReceipt } from "@/lib/thermal-printer";
+import { extractISVFromTotal, calculateDiscount } from "@/lib/calculations";
 import { useToast } from "@/hooks/use-toast";
 
 interface PaymentDetailsModalProps {
@@ -57,6 +61,9 @@ export default function PaymentDetailsModal({
   const [rtnPart3, setRtnPart3] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
+  const [discountType, setDiscountType] = useState<'percentage' | 'absolute' | null>(null);
+  const [discountValue, setDiscountValue] = useState<string>("");
+  const [discountReason, setDiscountReason] = useState<string>("");
 
   // Resetear switches al abrir/cambiar pago
   useEffect(() => {
@@ -67,6 +74,16 @@ export default function PaymentDetailsModal({
     setRtnPart3("");
     setCompanyName("");
     setPaymentMethod("efectivo");
+    // Inicializar descuentos desde el pago existente o resetear
+    if (payment?.discountType && payment?.discountValue) {
+      setDiscountType(payment.discountType as 'percentage' | 'absolute');
+      setDiscountValue(payment.discountValue.toString());
+      setDiscountReason(payment.discountReason || "");
+    } else {
+      setDiscountType(null);
+      setDiscountValue("");
+      setDiscountReason("");
+    }
   }, [payment]);
 
   if (!payment) return null;
@@ -108,6 +125,58 @@ export default function PaymentDetailsModal({
 
   const handleGenerateInvoice = async () => {
     try {
+      // Validar descuento si está configurado
+      if (discountType && discountValue) {
+        const discountNum = parseFloat(discountValue);
+        if (isNaN(discountNum) || discountNum < 0) {
+          toast({
+            title: "Error",
+            description: "El valor del descuento debe ser un número válido",
+            variant: "error",
+          });
+          return;
+        }
+        if (discountType === 'percentage' && (discountNum > 100 || discountNum < 0)) {
+          toast({
+            title: "Error",
+            description: "El descuento porcentual debe estar entre 0 y 100",
+            variant: "error",
+          });
+          return;
+        }
+        // Obtener el subtotal antes del ISV del total actual
+        const { subtotal } = extractISVFromTotal(payment.total);
+        if (discountType === 'absolute' && discountNum > subtotal) {
+          toast({
+            title: "Error",
+            description: "El descuento absoluto no puede ser mayor al subtotal",
+            variant: "error",
+          });
+          return;
+        }
+      }
+
+      // Si hay descuento configurado, actualizar el pago primero
+      if (discountType && discountValue && payment.status === "pendiente") {
+        const discountNum = parseFloat(discountValue);
+        const updateResponse = await fetch(`/api/payments/${payment.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            discountType,
+            discountValue: discountNum,
+            discountReason: discountReason || null,
+          }),
+        });
+
+        if (!updateResponse.ok) {
+          const errorData = await updateResponse.json();
+          throw new Error(errorData.error || 'Error al actualizar el descuento');
+        }
+      }
+
       // Generar factura en el backend
       const response = await fetch('/api/invoices/generate', {
         method: 'POST',
@@ -184,29 +253,58 @@ export default function PaymentDetailsModal({
     });
   };
 
-  const calculateTotal = () => {
-    if (!payment.items || payment.items.length === 0) return payment.total;
+  const calculateSubtotalItems = () => {
+    if (!payment.items || payment.items.length === 0) {
+      // Si no hay items, calcular desde el total del pago (que ya incluye ISV)
+      const { subtotal } = extractISVFromTotal(payment.total);
+      return subtotal;
+    }
     return payment.items.reduce((sum, item) => {
       return sum + item.total; // Usar el total precalculado del TransactionItem
     }, 0);
   };
 
-  const calculateSubtotal = () => {
-    const total = calculateTotal();
-    // El subtotal es el total sin ISV (total / 1.15)
-    return total / 1.15;
-  };
-
-  const calculateISV = () => {
-    const total = calculateTotal();
-    const subtotal = calculateSubtotal();
-    // ISV es el 15% que ya está incluido en el precio
-    return total - subtotal;
+  const getSubtotalBeforeISV = () => {
+    const subtotalItems = calculateSubtotalItems();
+    // Extraer el subtotal antes del ISV (los items ya incluyen ISV)
+    const { subtotal } = extractISVFromTotal(subtotalItems);
+    return subtotal;
   };
 
   const calculateDiscount = () => {
-    // Por ahora no hay descuentos, pero dejamos la estructura
-    return 0;
+    // Si hay un descuento siendo ingresado en el formulario, calcularlo
+    if (discountType && discountValue) {
+      const discountNum = parseFloat(discountValue);
+      if (!isNaN(discountNum) && discountNum > 0) {
+        const subtotalSinISV = getSubtotalBeforeISV();
+        
+        if (discountType === 'percentage') {
+          return (subtotalSinISV * discountNum) / 100;
+        } else {
+          return Math.min(discountNum, subtotalSinISV);
+        }
+      }
+    }
+    // Si no hay descuento en el formulario, usar el del payment guardado
+    return payment.discountAmount || 0;
+  };
+
+  const calculateSubtotal = () => {
+    const subtotalSinISV = getSubtotalBeforeISV();
+    const discount = calculateDiscount();
+    return subtotalSinISV - discount;
+  };
+
+  const calculateISV = () => {
+    const subtotalConDescuento = calculateSubtotal();
+    // ISV es el 15% del subtotal con descuento
+    return subtotalConDescuento * 0.15;
+  };
+
+  const calculateTotal = () => {
+    const subtotalConDescuento = calculateSubtotal();
+    const isv = calculateISV();
+    return subtotalConDescuento + isv;
   };
 
   return (
@@ -376,6 +474,98 @@ export default function PaymentDetailsModal({
           </>
         )}
 
+        {/* Campos de Descuento - Solo mostrar si está pendiente */}
+        {payment.status === "pendiente" && (
+          <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <Label className="text-sm font-medium text-gray-900 mb-3 block">
+              Descuento (Opcional)
+            </Label>
+            <div className="flex gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setDiscountType('percentage');
+                  setDiscountValue("");
+                }}
+                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                  discountType === 'percentage'
+                    ? 'border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Percent className="h-5 w-5" />
+                  <span className="font-medium">Porcentaje</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDiscountType('absolute');
+                  setDiscountValue("");
+                }}
+                className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                  discountType === 'absolute'
+                    ? 'border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  <span className="font-medium">Monto Fijo</span>
+                </div>
+              </button>
+              {discountType && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDiscountType(null);
+                    setDiscountValue("");
+                    setDiscountReason("");
+                  }}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {discountType && (
+              <>
+                <div className="space-y-2 mb-4">
+                  <Label className="text-sm font-medium text-gray-900">
+                    Valor del Descuento {discountType === 'percentage' ? '(%)' : '(L)'} *
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max={discountType === 'percentage' ? '100' : undefined}
+                    step={discountType === 'percentage' ? '0.01' : '0.01'}
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder={discountType === 'percentage' ? 'Ej: 10' : 'Ej: 50.00'}
+                    className="border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-900">
+                    Razón del Descuento (Opcional)
+                  </Label>
+                  <Textarea
+                    value={discountReason}
+                    onChange={(e) => setDiscountReason(e.target.value)}
+                    placeholder="Ej: Descuento por paciente de la tercera edad"
+                    rows={2}
+                    className="border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Campos de RTN (solo si está activado y pendiente) */}
         {payment.status === "pendiente" && useRTN && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
@@ -485,14 +675,38 @@ export default function PaymentDetailsModal({
                 {/* Subtotal */}
                 <div className="flex items-center justify-between text-sm text-gray-700">
                   <span>Subtotal:</span>
-                  <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
+                  <span className="font-medium">{formatCurrency(getSubtotalBeforeISV())}</span>
                 </div>
                 
                 {/* Descuentos */}
-                <div className="flex items-center justify-between text-sm text-gray-700">
-                  <span>Descuentos:</span>
-                  <span className="font-medium">{formatCurrency(calculateDiscount())}</span>
-                </div>
+                {calculateDiscount() > 0 && (
+                  <div className="flex items-center justify-between text-sm text-red-600">
+                    <div className="flex flex-col">
+                      <span>Descuento:</span>
+                      {(discountReason || payment.discountReason) && (
+                        <span className="text-xs text-gray-500 italic">({discountReason ? discountReason : payment.discountReason})</span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="font-medium">
+                        - {formatCurrency(calculateDiscount())}
+                      </span>
+                      {(discountType && discountValue) || (payment.discountType && payment.discountValue) ? (
+                        <span className="text-xs text-gray-500 block">
+                          ({discountType === 'percentage' ? `${discountValue}%` : discountType === 'absolute' ? `L ${discountValue}` : payment.discountType === 'percentage' ? `${payment.discountValue}%` : `L ${payment.discountValue}`})
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Subtotal con descuento */}
+                {calculateDiscount() > 0 && (
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Subtotal con descuento:</span>
+                    <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
+                  </div>
+                )}
                 
                 {/* ISV */}
                 <div className="flex items-center justify-between text-sm text-gray-700">

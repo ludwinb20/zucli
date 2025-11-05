@@ -51,6 +51,10 @@ export interface Payment {
   status: PaymentStatus;
   total: number;
   paymentMethod?: string | null;
+  discountAmount?: number;
+  discountType?: 'percentage' | 'absolute' | null;
+  discountValue?: number | null;
+  discountReason?: string | null;
   createdBy?: string | null;
   notes?: string | null;
   createdAt: Date | string;
@@ -117,6 +121,9 @@ export interface CreatePaymentData {
   items: CreatePaymentItemData[];
   notes?: string;
   type?: 'sale' | 'radiology'; // Tipo de pago: venta normal o radiología
+  discountValue?: number; // Valor del descuento (porcentaje o monto)
+  discountType?: 'percentage' | 'absolute'; // Tipo de descuento
+  discountReason?: string; // Razón del descuento (opcional)
 }
 
 // Datos para crear un pago desde una fuente existente
@@ -130,8 +137,19 @@ export interface CreatePaymentFromSourceData {
 
 // Datos para actualizar un pago
 export interface UpdatePaymentData {
+  patientId?: string; // Permitir cambiar el paciente
   status?: PaymentStatus;
   notes?: string;
+  items?: Array<{
+    priceId: string;
+    variantId?: string;
+    nombre: string;
+    precioUnitario: number;
+    quantity: number;
+  }>;
+  discountValue?: number; // Valor del descuento (porcentaje o monto)
+  discountType?: 'percentage' | 'absolute'; // Tipo de descuento
+  discountReason?: string; // Razón del descuento (opcional)
 }
 
 // ============================================

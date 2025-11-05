@@ -121,8 +121,13 @@ export default function PaymentModal({
     }
   };
 
-  const calculateTotal = () => {
+  const calculateSubtotal = () => {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  };
+
+  const calculateTotal = () => {
+    // Los precios ya incluyen ISV, así que el total es simplemente la suma de items
+    return calculateSubtotal();
   };
 
   // Handler para crear paciente
@@ -240,6 +245,7 @@ export default function PaymentModal({
                 <p className="text-2xl font-bold text-[#2E9589]">
                   L {calculateTotal().toFixed(2)}
                 </p>
+                <p className="text-xs text-gray-500 mt-1">(ISV incluido)</p>
               </div>
             </div>
           )}
