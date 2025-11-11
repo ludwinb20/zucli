@@ -340,25 +340,27 @@ export function printThermalReceipt(content: string) {
     printDocument.write(`
       <html>
         <head>
-          <title>Imprimir Factura</title>
+          <title></title>
           <style>
             @media print {
               body { 
-                font-family: 'Courier New', monospace; 
-                font-size: 12px; 
+                font-family: 'Courier New'; 
+                font-size: 14px; 
                 white-space: pre; 
                 margin: 0;
                 padding: 10px;
+                font-style: "bold"
               }
               @page {
-                margin: 10mm;
+                margin: 0;
               }
             }
             body { 
-              font-family: 'Courier New', monospace; 
-              font-size: 12px; 
+              font-family: 'Courier New'; 
+              font-size: 14px; 
               white-space: pre; 
-              margin: 20px;
+              margin: 0;
+              padding: 20px;
             }
           </style>
         </head>
