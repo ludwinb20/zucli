@@ -343,29 +343,39 @@ export function printThermalReceipt(content: string) {
           <title></title>
           <style>
             @media print {
-              body { 
-                font-family: 'Courier New'; 
-                font-size: 14px; 
-                white-space: pre; 
+              body {
+                font-family: 'Helvetica'; 
+                font-style: "bold";
+                font-size: 12px; 
                 margin: 0;
                 padding: 10px;
-                font-style: "bold"
+                }
+                @page {
+                  margin: 0;
+                }
               }
-              @page {
+              body { 
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+                font-family: 'Helvetica'; 
+                font-style: "bold";
+                font-size: 12px; 
+                margin: 0;
+                padding: 20px;
+              }
+              .receipt {
+                white-space: pre;
+                font-family: inherit;
+                font-size: inherit;
+                font-style: inherit;
+                line-height: 1.4;
                 margin: 0;
               }
-            }
-            body { 
-              font-family: 'Courier New'; 
-              font-size: 14px; 
-              white-space: pre; 
-              margin: 0;
-              padding: 20px;
-            }
-          </style>
-        </head>
-        <body>${content}</body>
-      </html>
+            </style>
+          </head>
+          <body><pre class="receipt">${content}</pre></body>
+        </html>
     `);
     printDocument.close();
 
