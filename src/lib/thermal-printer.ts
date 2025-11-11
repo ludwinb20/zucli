@@ -371,7 +371,7 @@ export function printThermalReceipt(content: string) {
             }
             .receipt-wrapper {
               width: 58mm;
-              padding: 2mm 1.5mm 3mm 3mm;
+              padding: 2mm 1.5mm 3mm 5mm;
               box-sizing: border-box;
             }
             .receipt {
