@@ -344,7 +344,7 @@ export function printThermalReceipt(content: string) {
           <style>
             @media print {
               body {
-                font-family: 'Helvetica'; 
+                font-family: 'Arial'; 
                 font-style: "bold";
                 font-size: 14px; 
                 margin: 0;
@@ -358,7 +358,7 @@ export function printThermalReceipt(content: string) {
                 display: flex;
                 justify-content: center;
                 align-items: flex-start;
-                font-family: 'Helvetica'; 
+                font-family: 'Arial'; 
                 font-style: "bold";
                 font-size: 14px; 
                 margin: 0;
