@@ -41,10 +41,16 @@ export default function MedicationControlModal({
       return;
     }
 
+    const invalidItem = items.find(item => !item.priceId || item.isCustom);
+    if (invalidItem) {
+      alert("Los medicamentos seleccionados deben pertenecer al catálogo del hospital");
+      return;
+    }
+
     // Convertir TreatmentItems a CreateMedicationControlItemData
     const data: CreateMedicationControlData = {
       items: items.map(item => ({
-        serviceItemId: item.priceId, // priceId en TreatmentItem es el serviceItemId
+        serviceItemId: item.priceId!, // priceId en TreatmentItem es el serviceItemId
         variantId: item.variantId || undefined,
         quantity: item.quantity,
       })),
