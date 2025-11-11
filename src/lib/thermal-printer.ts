@@ -342,40 +342,52 @@ export function printThermalReceipt(content: string) {
         <head>
           <title></title>
           <style>
+            :root {
+              color-scheme: light;
+            }
             @media print {
               body {
-                font-family: 'Arial'; 
-                font-style: "bold";
-                font-size: 14px; 
                 margin: 0;
-                padding: 10px;
-                }
-                @page {
-                  margin: 0;
-                }
-              }
-              body { 
+                background: white;
                 display: flex;
                 justify-content: center;
-                align-items: flex-start;
-                font-family: 'Arial'; 
-                font-style: "bold";
-                font-size: 14px; 
-                margin: 0;
-                padding: 10px;
               }
-              .receipt {
-                white-space: pre;
-                font-family: inherit;
-                font-size: inherit;
-                font-style: inherit;
-                line-height: 1.4;
+              @page {
+                size: 58mm auto;
                 margin: 0;
               }
-            </style>
-          </head>
-          <body><pre class="receipt">${content}</pre></body>
-        </html>
+            }
+            body {
+              margin: 0;
+              background: white;
+              display: flex;
+              justify-content: center;
+              font-family: 'Arial', sans-serif;
+              font-size: 12px;
+              line-height: 1.3;
+              letter-spacing: 0.2px;
+            }
+            .receipt-wrapper {
+              width: 58mm;
+              padding: 4mm 3mm 6mm;
+              box-sizing: border-box;
+            }
+            .receipt {
+              white-space: pre;
+              font-family: inherit;
+              font-size: inherit;
+              line-height: inherit;
+              letter-spacing: inherit;
+              margin: 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-wrapper">
+            <pre class="receipt">${content}</pre>
+          </div>
+        </body>
+      </html>
     `);
     printDocument.close();
 

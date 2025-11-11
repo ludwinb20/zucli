@@ -705,7 +705,7 @@ export default function PaymentDetailsModal({
                   <div className="flex items-center justify-between text-sm text-gray-600">
                     <span>Subtotal con descuento:</span>
                     <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
-                  </div>
+                </div>
                 )}
                 
                 {/* ISV */}

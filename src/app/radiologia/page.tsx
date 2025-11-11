@@ -310,15 +310,15 @@ export default function RadiologyPage() {
                         Imprimir
                       </Button>
                     )}
-                    <Button
-                      onClick={() => handleOpenResults(order)}
-                      size="sm"
-                      variant={order.status === 'pending' ? 'default' : 'outline'}
-                      className={order.status === 'pending' ? 'bg-[#2E9589] hover:bg-[#2E9589]/90 text-white' : ''}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      {order.status === 'pending' ? 'Iniciar' : 'Ver Detalles'}
-                    </Button>
+                  <Button
+                    onClick={() => handleOpenResults(order)}
+                    size="sm"
+                    variant={order.status === 'pending' ? 'default' : 'outline'}
+                    className={order.status === 'pending' ? 'bg-[#2E9589] hover:bg-[#2E9589]/90 text-white' : ''}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    {order.status === 'pending' ? 'Iniciar' : 'Ver Detalles'}
+                  </Button>
                   </div>
                 </div>
               ))}

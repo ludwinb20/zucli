@@ -538,15 +538,15 @@ export default function PaymentsPage() {
                       <>
                         {(user?.role.name === "caja" || user?.role.name === "admin") && (
                           <>
-                            <Button
-                              onClick={() => handleOpenEditItems(payment)}
-                              variant="outline"
-                              size="sm"
-                              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                      <Button
+                        onClick={() => handleOpenEditItems(payment)}
+                        variant="outline"
+                        size="sm"
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50"
                               title="Editar items"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                             <Button
                               onClick={() => handleOpenDelete(payment)}
                               variant="outline"
