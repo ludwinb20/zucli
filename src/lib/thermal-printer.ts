@@ -350,7 +350,8 @@ export function printThermalReceipt(content: string) {
                 margin: 0;
                 background: white;
                 display: flex;
-                justify-content: center;
+                justify-content: flex-start;
+                align-items: flex-start;
               }
               @page {
                 size: 58mm auto;
@@ -361,7 +362,8 @@ export function printThermalReceipt(content: string) {
               margin: 0;
               background: white;
               display: flex;
-              justify-content: center;
+              justify-content: flex-start;
+              align-items: flex-start;
               font-family: 'Arial', sans-serif;
               font-size: 12px;
               line-height: 1.3;
@@ -369,7 +371,7 @@ export function printThermalReceipt(content: string) {
             }
             .receipt-wrapper {
               width: 58mm;
-              padding: 4mm 3mm 6mm;
+              padding: 2mm 1.5mm 3mm 2mm;
               box-sizing: border-box;
             }
             .receipt {
