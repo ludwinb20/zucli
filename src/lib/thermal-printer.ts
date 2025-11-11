@@ -346,7 +346,7 @@ export function printThermalReceipt(content: string) {
               body {
                 font-family: 'Helvetica'; 
                 font-style: "bold";
-                font-size: 12px; 
+                font-size: 14px; 
                 margin: 0;
                 padding: 10px;
                 }
@@ -360,9 +360,9 @@ export function printThermalReceipt(content: string) {
                 align-items: flex-start;
                 font-family: 'Helvetica'; 
                 font-style: "bold";
-                font-size: 12px; 
+                font-size: 14px; 
                 margin: 0;
-                padding: 20px;
+                padding: 10px;
               }
               .receipt {
                 white-space: pre;
