@@ -391,7 +391,12 @@ export default function IncomeReport() {
                       <tr key={invoice.id} className="border-b border-gray-200 hover:bg-gray-50">
                         <td className="p-3">{invoice.numeroDocumento}</td>
                         <td className="p-3">
-                          {new Date(invoice.fechaEmision).toLocaleDateString('es-HN')}
+                          {new Date(invoice.fechaEmision).toLocaleDateString('es-HN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            timeZone: 'America/Tegucigalpa'
+                          })}
                         </td>
                         <td className="p-3">{invoice.clienteNombre}</td>
                         <td className="p-3">{invoice.clienteIdentidad}</td>

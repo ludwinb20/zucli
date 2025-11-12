@@ -5,6 +5,30 @@
 import { PaymentWithRelations } from "@/types/payments";
 import { InvoiceRange, SimpleReceiptWithRelations, LegalInvoiceWithRelations } from "@/types/invoices";
 
+// Función helper para formatear fechas en zona horaria de Honduras
+function formatDateHonduras(date: Date | string): string {
+  const d = new Date(date);
+  return d.toLocaleString('es-HN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Tegucigalpa'
+  });
+}
+
+// Función helper para formatear solo fechas (sin hora) en zona horaria de Honduras
+function formatDateOnlyHonduras(date: Date | string): string {
+  const d = new Date(date);
+  return d.toLocaleDateString('es-HN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'America/Tegucigalpa'
+  });
+}
+
 interface ReceiptPrintData {
   payment: PaymentWithRelations;
   numeroRecibo: string;
@@ -78,7 +102,7 @@ export function generateSimpleReceipt(data: ReceiptPrintData): string {
 
   // Información del recibo
   lines.push(`No. Recibo: ${numeroRecibo}`);
-  lines.push(`Fecha: ${new Date().toLocaleString('es-HN')}`);
+  lines.push(`Fecha: ${formatDateHonduras(new Date())}`);
   lines.push("");
   lines.push(dashed);
   lines.push("");
@@ -204,8 +228,8 @@ export function generateLegalInvoice(data: InvoicePrintData): string {
   lines.push(`No. Factura: ${numeroFactura}`);
   lines.push(`CAI: ${invoiceRange.cai}`);
   lines.push(`Rango: ${invoiceRange.rangoInicio}-${invoiceRange.rangoFin}`);
-  lines.push(`Fecha Limite: ${new Date(invoiceRange.fechaLimiteEmision).toLocaleDateString('es-HN')}`);
-  lines.push(`Fecha Emision: ${new Date().toLocaleString('es-HN')}`);
+  lines.push(`Fecha Limite: ${formatDateOnlyHonduras(invoiceRange.fechaLimiteEmision)}`);
+  lines.push(`Fecha Emision: ${formatDateHonduras(new Date())}`);
   lines.push("");
   lines.push(dashed);
   lines.push("");
@@ -444,7 +468,7 @@ export function generateSimpleReceiptFromDB(receipt: SimpleReceiptWithRelations)
 
   // Información del recibo
   lines.push(`No. Recibo: ${receipt.numeroDocumento}`);
-  lines.push(`Fecha: ${new Date(receipt.fechaEmision).toLocaleString('es-HN')}`);
+  lines.push(`Fecha: ${formatDateHonduras(receipt.fechaEmision)}`);
   lines.push("");
   lines.push(dashed);
   lines.push("");
@@ -565,7 +589,7 @@ export function generateLegalInvoiceFromDB(invoice: LegalInvoiceWithRelations): 
   if (invoice.cai) {
     lines.push(`CAI: ${invoice.cai}`);
   }
-  lines.push(`Fecha Emision: ${new Date(invoice.fechaEmision).toLocaleString('es-HN')}`);
+  lines.push(`Fecha Emision: ${formatDateHonduras(invoice.fechaEmision)}`);
   lines.push("");
   lines.push(dashed);
   lines.push("");
@@ -646,7 +670,7 @@ export function generateLegalInvoiceFromDB(invoice: LegalInvoiceWithRelations): 
   if (invoice.invoiceRange) {
     lines.push(center(`Rango Autorizado:`));
     lines.push(center(`${invoice.invoiceRange.rangoInicio} - ${invoice.invoiceRange.rangoFin}`));
-    lines.push(center(`Fecha Limite: ${new Date(invoice.invoiceRange.fechaLimiteEmision).toLocaleDateString('es-HN')}`));
+    lines.push(center(`Fecha Limite: ${formatDateOnlyHonduras(invoice.invoiceRange.fechaLimiteEmision)}`));
     lines.push("");
   }
 

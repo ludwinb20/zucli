@@ -138,22 +138,14 @@ export default function RadiologyPage() {
 
       if (!response.ok) throw new Error('Error al guardar resultados');
 
-      // Mostrar mensaje diferente si se completó la orden
-      const isCompleted = data.status === 'completed';
-      
+      // Siempre se completa la orden al guardar
       toast({
         title: "Éxito",
-        description: isCompleted 
-          ? "Orden completada y guardada correctamente" 
-          : "Resultados guardados correctamente",
+        description: "Orden completada y guardada correctamente",
       });
 
       // El modal de resultados manejará su propio cierre
-      // Solo cerramos el modal cuando se guarda un borrador (no completado)
-      if (!isCompleted) {
-        setIsResultsModalOpen(false);
-      }
-      // Si se completa, el modal se encargará de cerrarse o abrir el modal de impresión
+      // No cerramos el modal aquí, el modal se cerrará a sí mismo después de guardar
       
       loadOrders();
     } catch (error) {

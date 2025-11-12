@@ -171,12 +171,13 @@ export default function InvoicesPage() {
   };
 
   const formatDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString("es-ES", {
+    return new Date(date).toLocaleDateString("es-HN", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Tegucigalpa",
     });
   };
 
