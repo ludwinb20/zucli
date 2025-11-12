@@ -97,11 +97,17 @@ export default function RadiologyResultsModal({
           };
           setOrderForPrint(updatedOrder);
           setIsPrintModalOpen(true);
+          // No cerramos el modal porque necesitamos mostrar el modal de impresión
+        } else {
+          // Si se completa sin imprimir, cerrar el modal después de un breve delay
+          // para que el usuario vea el mensaje de éxito
+          setTimeout(() => {
+            onClose();
+          }, 300);
         }
-      }
-      
-      if (!markAsCompleted) {
-        onClose();
+      } else {
+        // Si solo se guarda como borrador, el componente padre cerrará el modal
+        // No necesitamos hacer nada aquí
       }
     } catch (error) {
       // Error handled by parent
@@ -303,7 +309,7 @@ export default function RadiologyResultsModal({
           {/* Botones cuando está editando (pendiente o completado en edición) */}
           {isEditing && (
             <>
-              {/* Botón Guardar - Solo para órdenes pendientes */}
+              {/* Botón Guardar - Solo para órdenes pendientes (guardar borrador) */}
               {!isCompleted && (
                 <Button
                   type="button"
@@ -316,23 +322,40 @@ export default function RadiologyResultsModal({
                   ) : (
                     <Save className="h-4 w-4 mr-2" />
                   )}
-                  Guardar
+                  Guardar Borrador
                 </Button>
               )}
 
-              {/* Botón Guardar e Imprimir - Solo cuando se completa */}
+              {/* Botón Guardar sin Imprimir - Solo para órdenes pendientes */}
+              {!isCompleted && (
+                <Button
+                  type="button"
+                  onClick={() => handleSubmit(true, false)}
+                  disabled={saving}
+                  className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+                >
+                  {saving ? (
+                    <InlineSpinner className="mr-2" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                  )}
+                  Guardar sin Imprimir Reporte
+                </Button>
+              )}
+
+              {/* Botón Guardar e Imprimir - Para completar e imprimir */}
               <Button
                 type="button"
                 onClick={() => handleSubmit(true, true)}
-                disabled={saving || !notes.trim()}
+                disabled={saving || (!isCompleted && !notes.trim())}
                 className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
               >
                 {saving ? (
                   <InlineSpinner className="mr-2" />
                 ) : (
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  <Printer className="h-4 w-4 mr-2" />
                 )}
-                {isCompleted ? 'Guardar Cambios' : 'Guardar e Imprimir'}
+                {isCompleted ? 'Guardar Cambios e Imprimir' : 'Guardar e Imprimir'}
               </Button>
             </>
           )}
