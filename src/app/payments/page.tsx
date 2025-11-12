@@ -259,12 +259,12 @@ export default function PaymentsPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Error al eliminar el pago");
+        throw new Error(errorData.error || "Error al desactivar el pago");
       }
 
       toast({
         title: "Éxito",
-        description: "Pago eliminado exitosamente",
+        description: "Pago desactivado exitosamente",
         variant: "success",
       });
 
@@ -552,7 +552,7 @@ export default function PaymentsPage() {
                               variant="outline"
                               size="sm"
                               className="border-red-300 text-red-600 hover:bg-red-50"
-                              title="Eliminar pago"
+                              title="Desactivar pago"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -671,10 +671,19 @@ export default function PaymentsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-600">
               <Trash2 className="h-5 w-5" />
-              ¿Eliminar pago?
+              ¿Desactivar pago?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-gray-600">
-              Esta acción no se puede deshacer. Se eliminará permanentemente el pago de{" "}
+              El pago será desactivado y ya no aparecerá en las listas, reportes ni estadísticas. 
+              Sin embargo, el registro se mantendrá en el sistema por razones de auditoría.
+              {paymentToDelete?.invoices && paymentToDelete.invoices.length > 0 && (
+                <span className="block mt-2 text-red-600 font-semibold">
+                  ⚠️ Este pago tiene facturas asociadas y no puede ser desactivado.
+                </span>
+              )}
+              <br />
+              <br />
+              Pago de{" "}
               <strong>
                 {paymentToDelete?.patient.firstName} {paymentToDelete?.patient.lastName}
               </strong>{" "}
@@ -701,12 +710,12 @@ export default function PaymentsPage() {
               {isDeleting ? (
                 <>
                   <InlineSpinner size="sm" className="mr-2" />
-                  Eliminando...
+                  Desactivando...
                 </>
               ) : (
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Eliminar
+                  Desactivar
                 </>
               )}
             </AlertDialogAction>

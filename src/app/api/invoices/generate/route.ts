@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { extractISVFromTotal } from '@/lib/calculations';
+import { extractISVFromTotal, calculateISV } from '@/lib/calculations';
 
 // POST /api/invoices/generate - Generar factura legal o recibo simple
 export async function POST(request: NextRequest) {
@@ -20,20 +20,54 @@ export async function POST(request: NextRequest) {
       clienteNombre, 
       detalleGenerico,
       observaciones,
-      paymentMethod 
+      paymentMethod, // Mantener para compatibilidad
+      partialPayments // Nuevo: array de pagos parciales
     } = body;
 
-    // Validar que paymentMethod sea válido
-    const validPaymentMethods = ['efectivo', 'tarjeta', 'transferencia'];
-    if (!paymentMethod || !validPaymentMethods.includes(paymentMethod)) {
+    // Validar pagos parciales o método de pago único
+    let partialPaymentsData: Array<{ method: string; amount: number }> = [];
+    
+    if (partialPayments && Array.isArray(partialPayments) && partialPayments.length > 0) {
+      // Validar pagos parciales
+      const validMethods = ['efectivo', 'tarjeta', 'transferencia'];
+      let totalPartial = 0;
+
+      for (const pp of partialPayments) {
+        if (!pp.method || !validMethods.includes(pp.method)) {
+          return NextResponse.json({ 
+            error: `Método de pago inválido: ${pp.method}. Debe ser: efectivo, tarjeta o transferencia` 
+          }, { status: 400 });
+        }
+        if (typeof pp.amount !== 'number' || pp.amount <= 0) {
+          return NextResponse.json({ 
+            error: 'Todos los montos de pago parcial deben ser números válidos mayores a 0' 
+          }, { status: 400 });
+        }
+        totalPartial += pp.amount;
+      }
+
+      partialPaymentsData = partialPayments;
+    } else if (paymentMethod) {
+      // Compatibilidad: si solo hay un método de pago, convertirlo a formato de pagos parciales
+      const validPaymentMethods = ['efectivo', 'tarjeta', 'transferencia'];
+      if (!validPaymentMethods.includes(paymentMethod)) {
+        return NextResponse.json({ 
+          error: 'Método de pago inválido. Debe ser: efectivo, tarjeta o transferencia' 
+        }, { status: 400 });
+      }
+      // Se creará el pago parcial después de validar el total
+    } else {
       return NextResponse.json({ 
-        error: 'Método de pago inválido. Debe ser: efectivo, tarjeta o transferencia' 
+        error: 'Debe proporcionar al menos un método de pago (paymentMethod o partialPayments)' 
       }, { status: 400 });
     }
 
-    // Validar que el pago existe y obtener su fuente
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
+    // Validar que el pago existe, está activo y obtener su fuente
+    const payment = await prisma.payment.findFirst({
+      where: { 
+        id: paymentId,
+        isActive: true, // Solo pagos activos pueden generar facturas
+      },
       include: {
         patient: true,
         consultation: true,
@@ -88,21 +122,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El pago no tiene items' }, { status: 400 });
     }
 
+    // Validar que la suma de pagos parciales sea igual al total
+    if (partialPaymentsData.length > 0) {
+      const totalPartial = partialPaymentsData.reduce((sum, pp) => sum + pp.amount, 0);
+      const totalPayment = payment.total;
+      const difference = Math.abs(totalPayment - totalPartial);
+      
+      if (difference > 0.01) {
+        return NextResponse.json({ 
+          error: `La suma de los pagos parciales (${totalPartial.toFixed(2)}) debe ser igual al total del pago (${totalPayment.toFixed(2)}). Diferencia: ${difference.toFixed(2)}` 
+        }, { status: 400 });
+      }
+    } else if (paymentMethod) {
+      // Si es método único, crear un pago parcial con el total completo
+      partialPaymentsData = [{
+        method: paymentMethod,
+        amount: payment.total,
+      }];
+    }
+
     // Calcular montos usando funciones validadas
-    const total = payment.total;
+    // Los precios de los items YA incluyen ISV, así que necesitamos extraerlo
     
-    // Calcular subtotal de items
+    // Calcular subtotal de items (los items ya incluyen ISV en su total)
     const subtotalItems = items.reduce((sum, item) => sum + item.total, 0);
     
-    // Obtener descuentos del pago
+    // Extraer el subtotal antes del ISV (los precios ya incluyen ISV)
+    const { subtotal: subtotalSinISV } = extractISVFromTotal(subtotalItems);
+    
+    // Obtener descuentos del pago (se aplican al subtotal sin ISV)
     const descuentos = payment.discountAmount || 0;
-    const subtotalConDescuento = subtotalItems - descuentos;
+    const subtotalConDescuento = subtotalSinISV - descuentos;
     
-    // Calcular ISV sobre el subtotal con descuento
-    const isv = subtotalConDescuento * 0.15;
+    // Recalcular ISV sobre el subtotal con descuento (15% del subtotal con descuento)
+    const isv = calculateISV(subtotalConDescuento);
     
-    // El subtotal usado en la factura es el subtotal de items (antes de descuento)
-    const subtotal = subtotalItems;
+    // El subtotal usado en la factura es el subtotal sin ISV (después de descuento)
+    const subtotal = subtotalConDescuento;
+    
+    // El total final es el que viene del payment (ya está correcto)
+    const total = payment.total;
 
     if (useRTN && clienteRTN) {
       // ============================================
@@ -199,12 +258,25 @@ export async function POST(request: NextRequest) {
         data: { correlativoActual: correlativo }
       });
 
-      // Actualizar estado del pago a "paid" y guardar método de pago
+      // Guardar pagos parciales
+      await prisma.partialPayment.deleteMany({
+        where: { paymentId: payment.id },
+      });
+
+      await prisma.partialPayment.createMany({
+        data: partialPaymentsData.map(pp => ({
+          paymentId: payment.id,
+          method: pp.method,
+          amount: pp.amount,
+        })),
+      });
+
+      // Actualizar estado del pago a "paid" y guardar método de pago (usar el primer método para compatibilidad)
       await prisma.payment.update({
         where: { id: payment.id },
         data: { 
           status: 'paid',
-          paymentMethod 
+          paymentMethod: partialPaymentsData.length > 0 ? partialPaymentsData[0].method : paymentMethod
         }
       });
 
@@ -282,12 +354,25 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Actualizar estado del pago a "paid" y guardar método de pago
+      // Guardar pagos parciales
+      await prisma.partialPayment.deleteMany({
+        where: { paymentId: payment.id },
+      });
+
+      await prisma.partialPayment.createMany({
+        data: partialPaymentsData.map(pp => ({
+          paymentId: payment.id,
+          method: pp.method,
+          amount: pp.amount,
+        })),
+      });
+
+      // Actualizar estado del pago a "paid" y guardar método de pago (usar el primer método para compatibilidad)
       await prisma.payment.update({
         where: { id: payment.id },
         data: { 
           status: 'paid',
-          paymentMethod 
+          paymentMethod: partialPaymentsData.length > 0 ? partialPaymentsData[0].method : paymentMethod
         }
       });
 

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, LogOut, Calendar, User, Bed, Clock, Stethoscope, CheckCircle, FilePlus } from "lucide-react";
+import { Activity, LogOut, Calendar, Bed, Clock, Stethoscope, CheckCircle, FilePlus, DollarSign } from "lucide-react";
 import { HospitalizationWithRelations } from "@/types/hospitalization";
 import { formatDaysOfStay } from "@/lib/hospitalization-helpers";
 
@@ -9,6 +9,7 @@ interface HospitalizationHeaderProps {
   isActive: boolean;
   onDischarge: () => void;
   onEmitDocument?: () => void;
+  onChangeDailyRate?: () => void;
 }
 
 export default function HospitalizationHeader({
@@ -16,6 +17,7 @@ export default function HospitalizationHeader({
   isActive,
   onDischarge,
   onEmitDocument,
+  onChangeDailyRate,
 }: HospitalizationHeaderProps) {
   const getStatusBadge = () => {
     if (hospitalization.status === "iniciada") {
@@ -51,6 +53,17 @@ export default function HospitalizationHeader({
         </div>
         <div className="flex gap-2">
           {getStatusBadge()}
+          {isActive && onChangeDailyRate && (
+            <Button
+              onClick={onChangeDailyRate}
+              variant="outline"
+              size="sm"
+              className="bg-white text-amber-600 border-amber-200 hover:bg-amber-50"
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Ajustar tarifa
+            </Button>
+          )}
           {onEmitDocument && (
             <Button
               onClick={onEmitDocument}

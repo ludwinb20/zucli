@@ -32,6 +32,8 @@ import {
   ArrowRightLeft,
   Percent,
   DollarSign,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { PaymentWithRelations, PaymentStatus, PaymentMethod } from "@/types/payments";
 import { InlineSpinner } from "@/components/ui/spinner";
@@ -60,7 +62,9 @@ export default function PaymentDetailsModal({
   const [rtnPart2, setRtnPart2] = useState("");
   const [rtnPart3, setRtnPart3] = useState("");
   const [companyName, setCompanyName] = useState("");
+  const [paymentMode, setPaymentMode] = useState<'single' | 'partial'>('single'); // 'single' o 'partial'
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("efectivo");
+  const [partialPayments, setPartialPayments] = useState<Array<{ method: PaymentMethod; amount: string }>>([]);
   const [discountType, setDiscountType] = useState<'percentage' | 'absolute' | null>(null);
   const [discountValue, setDiscountValue] = useState<string>("");
   const [discountReason, setDiscountReason] = useState<string>("");
@@ -74,6 +78,27 @@ export default function PaymentDetailsModal({
     setRtnPart3("");
     setCompanyName("");
     setPaymentMethod("efectivo");
+    setPaymentMode('single'); // Por defecto: pago único
+    
+    // Cargar pagos parciales si el pago ya está pagado
+    if (payment?.partialPayments && payment.partialPayments.length > 0) {
+      // Si hay múltiples pagos parciales, usar modo parcial
+      if (payment.partialPayments.length > 1) {
+        setPaymentMode('partial');
+        setPartialPayments(payment.partialPayments.map(pp => ({
+          method: pp.method as PaymentMethod,
+          amount: pp.amount.toString(),
+        })));
+      } else {
+        // Si solo hay un pago parcial, usar modo único
+        setPaymentMode('single');
+        setPaymentMethod(payment.partialPayments[0].method as PaymentMethod);
+        setPartialPayments([]);
+      }
+    } else {
+      setPartialPayments([]);
+    }
+    
     // Inicializar descuentos desde el pago existente o resetear
     if (payment?.discountType && payment?.discountValue) {
       setDiscountType(payment.discountType as 'percentage' | 'absolute');
@@ -125,6 +150,55 @@ export default function PaymentDetailsModal({
 
   const handleGenerateInvoice = async () => {
     try {
+      // Validar según el modo de pago
+      if (paymentMode === 'partial') {
+        // Validar pagos parciales
+        if (partialPayments.length === 0) {
+          toast({
+            title: "Error",
+            description: "Debe agregar al menos un método de pago",
+            variant: "error",
+          });
+          return;
+        }
+
+        const total = calculateTotal();
+        const partialTotal = getTotalPartialPayments();
+        const remaining = Math.abs(total - partialTotal);
+
+        if (remaining > 0.01) {
+          toast({
+            title: "Error",
+            description: `La suma de los pagos parciales (${formatCurrency(partialTotal)}) debe ser igual al total del pago (${formatCurrency(total)}). Restante: ${formatCurrency(remaining)}`,
+            variant: "error",
+          });
+          return;
+        }
+
+        // Validar que todos los montos sean válidos
+        for (const pp of partialPayments) {
+          const amount = parseFloat(pp.amount);
+          if (isNaN(amount) || amount <= 0) {
+            toast({
+              title: "Error",
+              description: "Todos los montos de pago parcial deben ser números válidos mayores a 0",
+              variant: "error",
+            });
+            return;
+          }
+        }
+      } else {
+        // Modo único: validar que el método esté seleccionado
+        if (!paymentMethod) {
+          toast({
+            title: "Error",
+            description: "Debe seleccionar un método de pago",
+            variant: "error",
+          });
+          return;
+        }
+      }
+
       // Validar descuento si está configurado
       if (discountType && discountValue) {
         const discountNum = parseFloat(discountValue);
@@ -177,21 +251,45 @@ export default function PaymentDetailsModal({
         }
       }
 
+      // Preparar datos según el modo
+      interface GenerateInvoiceRequestBody {
+        paymentId: string;
+        useRTN: boolean;
+        clienteRTN?: string;
+        clienteNombre: string;
+        detalleGenerico: boolean;
+        observaciones: null;
+        paymentMethod?: PaymentMethod;
+        partialPayments?: Array<{ method: PaymentMethod; amount: number }>;
+      }
+
+      const requestBody: GenerateInvoiceRequestBody = {
+        paymentId: payment.id,
+        useRTN: Boolean(useRTN && rtnPart1 && rtnPart2 && rtnPart3 && companyName),
+        clienteRTN: useRTN ? `${rtnPart1}-${rtnPart2}-${rtnPart3}` : undefined,
+        clienteNombre: useRTN ? companyName : `${payment.patient.firstName} ${payment.patient.lastName}`,
+        detalleGenerico: useGenericDescription,
+        observaciones: null,
+      };
+
+      if (paymentMode === 'partial') {
+        // Enviar pagos parciales
+        requestBody.partialPayments = partialPayments.map(pp => ({
+          method: pp.method,
+          amount: parseFloat(pp.amount),
+        }));
+      } else {
+        // Enviar método único
+        requestBody.paymentMethod = paymentMethod;
+      }
+
       // Generar factura en el backend
       const response = await fetch('/api/invoices/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          paymentId: payment.id,
-          useRTN: useRTN && rtnPart1 && rtnPart2 && rtnPart3 && companyName,
-          clienteRTN: useRTN ? `${rtnPart1}-${rtnPart2}-${rtnPart3}` : undefined,
-          clienteNombre: useRTN ? companyName : `${payment.patient.firstName} ${payment.patient.lastName}`,
-          detalleGenerico: useGenericDescription,
-          observaciones: null,
-          paymentMethod,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -307,6 +405,38 @@ export default function PaymentDetailsModal({
     return subtotalConDescuento + isv;
   };
 
+  // Funciones para manejar pagos parciales
+  const addPartialPayment = () => {
+    setPartialPayments([...partialPayments, { method: "efectivo", amount: "" }]);
+  };
+
+  const removePartialPayment = (index: number) => {
+    setPartialPayments(partialPayments.filter((_, i) => i !== index));
+  };
+
+  const updatePartialPayment = (index: number, field: 'method' | 'amount', value: string) => {
+    const updated = [...partialPayments];
+    if (field === 'method') {
+      updated[index].method = value as PaymentMethod;
+    } else {
+      updated[index].amount = value;
+    }
+    setPartialPayments(updated);
+  };
+
+  const getTotalPartialPayments = () => {
+    return partialPayments.reduce((sum, pp) => {
+      const amount = parseFloat(pp.amount) || 0;
+      return sum + amount;
+    }, 0);
+  };
+
+  const getRemainingAmount = () => {
+    const total = calculateTotal();
+    const partialTotal = getTotalPartialPayments();
+    return total - partialTotal;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-8">
@@ -368,71 +498,224 @@ export default function PaymentDetailsModal({
           </div>
         </div>
 
-        {/* Mostrar método de pago cuando está pagado */}
-        {payment.status === "paid" && payment.paymentMethod && (
+        {/* Mostrar métodos de pago cuando está pagado */}
+        {payment.status === "paid" && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-3">
-              {payment.paymentMethod === "efectivo" && <Wallet size={20} className="text-green-600" />}
-              {payment.paymentMethod === "tarjeta" && <CreditCard size={20} className="text-green-600" />}
-              {payment.paymentMethod === "transferencia" && <ArrowRightLeft size={20} className="text-green-600" />}
-              <div>
-                <p className="text-sm font-medium text-gray-900">Método de Pago</p>
-                <p className="text-xs text-gray-600">
-                  {payment.paymentMethod === "efectivo" && "Efectivo"}
-                  {payment.paymentMethod === "tarjeta" && "Tarjeta"}
-                  {payment.paymentMethod === "transferencia" && "Transferencia"}
-                </p>
+            <p className="text-sm font-medium text-gray-900 mb-3">Métodos de Pago</p>
+            {payment.partialPayments && payment.partialPayments.length > 0 ? (
+              <div className="space-y-2">
+                {payment.partialPayments.map((pp, index) => (
+                  <div key={pp.id || index} className="flex items-center justify-between p-2 bg-white rounded border border-gray-200">
+                    <div className="flex items-center gap-2">
+                      {pp.method === "efectivo" && <Wallet size={16} className="text-green-600" />}
+                      {pp.method === "tarjeta" && <CreditCard size={16} className="text-blue-600" />}
+                      {pp.method === "transferencia" && <ArrowRightLeft size={16} className="text-purple-600" />}
+                      <span className="text-sm font-medium text-gray-700 capitalize">
+                        {pp.method === "efectivo" && "Efectivo"}
+                        {pp.method === "tarjeta" && "Tarjeta"}
+                        {pp.method === "transferencia" && "Transferencia"}
+                      </span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {formatCurrency(pp.amount)}
+                    </span>
+                  </div>
+                ))}
+                <div className="pt-2 border-t border-gray-300 mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-900">Total:</span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {formatCurrency(payment.partialPayments.reduce((sum, pp) => sum + pp.amount, 0))}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : payment.paymentMethod ? (
+              <div className="flex items-center gap-3">
+                {payment.paymentMethod === "efectivo" && <Wallet size={20} className="text-green-600" />}
+                {payment.paymentMethod === "tarjeta" && <CreditCard size={20} className="text-green-600" />}
+                {payment.paymentMethod === "transferencia" && <ArrowRightLeft size={20} className="text-green-600" />}
+                <div>
+                  <p className="text-xs text-gray-600">
+                    {payment.paymentMethod === "efectivo" && "Efectivo"}
+                    {payment.paymentMethod === "tarjeta" && "Tarjeta"}
+                    {payment.paymentMethod === "transferencia" && "Transferencia"}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 
         {/* Opciones de Facturación - Solo mostrar si está pendiente */}
         {payment.status === "pendiente" && (
           <>
-            {/* Selector de Método de Pago */}
+            {/* Métodos de Pago */}
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <Label className="text-sm font-medium text-gray-900 mb-3 block">
                 Método de Pago *
               </Label>
-              <div className="grid grid-cols-3 gap-3">
+
+              {/* Selector de modo: Pago único o Pagos parciales */}
+              <div className="mb-4 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod("efectivo")}
-                  className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                    paymentMethod === "efectivo"
-                      ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
-                      : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                  onClick={() => {
+                    setPaymentMode('single');
+                    setPartialPayments([]);
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                    paymentMode === 'single'
+                      ? 'border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]'
+                      : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
                   }`}
                 >
-                  <Wallet size={24} className="mb-2" />
-                  <span className="text-sm font-medium">Efectivo</span>
+                  Pago Único
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPaymentMethod("tarjeta")}
-                  className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                    paymentMethod === "tarjeta"
-                      ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
-                      : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                  onClick={() => {
+                    setPaymentMode('partial');
+                    // Si estaba en modo único, agregar un método con el total
+                    if (partialPayments.length === 0) {
+                      setPartialPayments([{ method: paymentMethod, amount: calculateTotal().toFixed(2) }]);
+                    }
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                    paymentMode === 'partial'
+                      ? 'border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]'
+                      : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
                   }`}
                 >
-                  <CreditCard size={24} className="mb-2" />
-                  <span className="text-sm font-medium">Tarjeta</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("transferencia")}
-                  className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                    paymentMethod === "transferencia"
-                      ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
-                      : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
-                  }`}
-                >
-                  <ArrowRightLeft size={24} className="mb-2" />
-                  <span className="text-sm font-medium">Transferencia</span>
+                  Pagos Parciales
                 </button>
               </div>
+
+              {/* Pago Único */}
+              {paymentMode === 'single' && (
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("efectivo")}
+                    className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                      paymentMethod === "efectivo"
+                        ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
+                        : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                    }`}
+                  >
+                    <Wallet size={24} className="mb-2" />
+                    <span className="text-sm font-medium">Efectivo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("tarjeta")}
+                    className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                      paymentMethod === "tarjeta"
+                        ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
+                        : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                    }`}
+                  >
+                    <CreditCard size={24} className="mb-2" />
+                    <span className="text-sm font-medium">Tarjeta</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("transferencia")}
+                    className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
+                      paymentMethod === "transferencia"
+                        ? "border-[#2E9589] bg-[#2E9589]/10 text-[#2E9589]"
+                        : "border-gray-300 bg-white text-gray-600 hover:border-gray-400"
+                    }`}
+                  >
+                    <ArrowRightLeft size={24} className="mb-2" />
+                    <span className="text-sm font-medium">Transferencia</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Pagos Parciales */}
+              {paymentMode === 'partial' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">Agregue los métodos de pago y sus montos</span>
+                    <Button
+                      type="button"
+                      onClick={addPartialPayment}
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Agregar Método
+                    </Button>
+                  </div>
+
+                  {partialPayments.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500 text-sm">
+                      No hay métodos de pago agregados. Haga clic en &quot;Agregar Método&quot; para comenzar.
+                    </div>
+                  ) : (
+                    <>
+                      {partialPayments.map((pp, index) => (
+                        <div key={index} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200">
+                          <select
+                            value={pp.method}
+                            onChange={(e) => updatePartialPayment(index, 'method', e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2E9589] focus:border-transparent"
+                          >
+                            <option value="efectivo">Efectivo</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="transferencia">Transferencia</option>
+                          </select>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={pp.amount}
+                            onChange={(e) => updatePartialPayment(index, 'amount', e.target.value)}
+                            placeholder="0.00"
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => removePartialPayment(index)}
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      
+                      {/* Resumen de totales */}
+                      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Total del Pago:</span>
+                          <span className="text-sm font-bold text-gray-900">{formatCurrency(calculateTotal())}</span>
+                        </div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-700">Total Parcial:</span>
+                          <span className="text-sm font-semibold text-gray-700">{formatCurrency(getTotalPartialPayments())}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                          <span className="text-sm font-medium text-gray-700">Restante:</span>
+                          <span className={`text-sm font-bold ${getRemainingAmount() < 0 ? 'text-red-600' : getRemainingAmount() > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                            {formatCurrency(getRemainingAmount())}
+                          </span>
+                        </div>
+                        {Math.abs(getRemainingAmount()) > 0.01 && (
+                          <p className="text-xs text-red-600 mt-2">
+                            {getRemainingAmount() < 0 
+                              ? '⚠️ El total parcial excede el total del pago'
+                              : '⚠️ La suma de los pagos parciales debe ser igual al total del pago'}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Opciones de Facturación */}

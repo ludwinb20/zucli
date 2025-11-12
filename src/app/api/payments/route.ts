@@ -56,10 +56,18 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const totalCount = await prisma.payment.count({ where });
+    const totalCount = await prisma.payment.count({ 
+      where: {
+        ...where,
+        isActive: true, // Solo pagos activos
+      }
+    });
 
     const payments = await prisma.payment.findMany({
-      where,
+      where: {
+        ...where,
+        isActive: true, // Solo pagos activos
+      },
       include: {
         patient: {
           select: {
@@ -97,9 +105,19 @@ export async function GET(request: NextRequest) {
             status: true,
           }
         },
+        partialPayments: {
+          orderBy: {
+            createdAt: 'asc'
+          }
+        },
         refunds: {
           orderBy: {
             createdAt: 'desc'
+          }
+        },
+        invoices: {
+          select: {
+            id: true
           }
         }
       },

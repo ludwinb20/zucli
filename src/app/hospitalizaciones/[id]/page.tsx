@@ -27,6 +27,7 @@ import IntakeOutputTab from "@/components/hospitalizaciones/IntakeOutputTab";
 import ExamenFisicoTab from "@/components/hospitalizaciones/ExamenFisicoTab";
 import MedicationTab from "@/components/hospitalizaciones/MedicationTab";
 import MedicalDocumentModal from "@/components/MedicalDocumentModal";
+import HospitalizationRateModal from "@/components/hospitalizaciones/HospitalizationRateModal";
 
 export default function HospitalizacionDetallesPage() {
   const params = useParams();
@@ -45,6 +46,7 @@ export default function HospitalizacionDetallesPage() {
   const [isAdmissionRecordModalOpen, setIsAdmissionRecordModalOpen] = useState(false);
   const [isDischargeRecordModalOpen, setIsDischargeRecordModalOpen] = useState(false);
   const [isMedicalDocumentModalOpen, setIsMedicalDocumentModalOpen] = useState(false);
+  const [isRateModalOpen, setIsRateModalOpen] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -117,6 +119,7 @@ export default function HospitalizacionDetallesPage() {
 
   const dailyRate = getDailyRate(hospitalization.dailyRateItem, hospitalization.dailyRateVariant);
   const isActive = hospitalization.status === "iniciada";
+  const hasDailyRateVariants = (hospitalization.dailyRateItem?.variants?.length || 0) > 0;
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
@@ -127,6 +130,7 @@ export default function HospitalizacionDetallesPage() {
           isActive={isActive}
           onDischarge={() => setIsDischargeRecordModalOpen(true)}
           onEmitDocument={() => setIsMedicalDocumentModalOpen(true)}
+          onChangeDailyRate={isActive && hasDailyRateVariants ? () => setIsRateModalOpen(true) : undefined}
         />
 
         {/* Tabs */}
@@ -414,6 +418,15 @@ export default function HospitalizacionDetallesPage() {
             description: 'El documento médico se ha generado exitosamente',
             variant: 'success',
           });
+        }}
+      />
+      <HospitalizationRateModal
+        isOpen={isRateModalOpen}
+        onClose={() => setIsRateModalOpen(false)}
+        hospitalization={hospitalization}
+        onSuccess={() => {
+          setIsRateModalOpen(false);
+          loadHospitalization();
         }}
       />
     </div>

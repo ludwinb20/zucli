@@ -33,9 +33,19 @@ export async function GET(
         sale: true,
         hospitalization: true,
         surgery: true,
+        partialPayments: {
+          orderBy: {
+            createdAt: 'asc'
+          }
+        },
         refunds: {
           orderBy: {
             createdAt: 'desc'
+          }
+        },
+        invoices: {
+          select: {
+            id: true
           }
         }
       }
@@ -73,9 +83,12 @@ export async function PUT(
     const { id } = await params;
     const body: UpdatePaymentData = await request.json();
 
-    // Verificar que el pago existe
-    const existingPayment = await prisma.payment.findUnique({
-      where: { id },
+    // Verificar que el pago existe y está activo
+    const existingPayment = await prisma.payment.findFirst({
+      where: { 
+        id,
+        isActive: true, // Solo pagos activos
+      },
       include: {
         sale: true,
         consultation: true,
@@ -454,9 +467,12 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Verificar que el pago existe
-    const payment = await prisma.payment.findUnique({
-      where: { id },
+    // Verificar que el pago existe y está activo
+    const payment = await prisma.payment.findFirst({
+      where: { 
+        id,
+        isActive: true, // Solo pagos activos pueden ser desactivados
+      },
       include: {
         invoices: {
           select: { id: true }
@@ -468,36 +484,25 @@ export async function DELETE(
     });
 
     if (!payment) {
-      return NextResponse.json({ error: 'Pago no encontrado' }, { status: 404 });
+      return NextResponse.json({ error: 'Pago no encontrado o ya está desactivado' }, { status: 404 });
     }
 
-    // Solo se pueden eliminar pagos pendientes
-    if (payment.status !== 'pendiente') {
-      return NextResponse.json({ 
-        error: 'Solo se pueden eliminar pagos pendientes' 
-      }, { status: 400 });
-    }
-
-    // Verificar que no tenga facturas generadas
+    // Verificar si tiene facturas asociadas (si tiene facturas, no se puede desactivar)
     if (payment.invoices && payment.invoices.length > 0) {
       return NextResponse.json({ 
-        error: 'No se puede eliminar un pago que ya tiene facturas generadas' 
+        error: 'No se puede desactivar un pago que tiene facturas asociadas. Las facturas ya fueron emitidas y deben mantenerse en el sistema.' 
       }, { status: 400 });
     }
 
-    // Verificar que no tenga reembolsos
-    if (payment.refunds && payment.refunds.length > 0) {
-      return NextResponse.json({ 
-        error: 'No se puede eliminar un pago que ya tiene reembolsos registrados' 
-      }, { status: 400 });
-    }
-
-    // Eliminar el pago (los items se eliminarán en cascada)
-    await prisma.payment.delete({
-      where: { id }
+    // Desactivar el pago (soft delete) en lugar de eliminarlo
+    await prisma.payment.update({
+      where: { id },
+      data: {
+        isActive: false
+      }
     });
 
-    return NextResponse.json({ message: 'Pago eliminado exitosamente' });
+    return NextResponse.json({ message: 'Pago desactivado correctamente' });
 
   } catch (error) {
     console.error('Error deleting payment:', error);

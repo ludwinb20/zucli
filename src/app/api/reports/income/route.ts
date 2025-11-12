@@ -39,9 +39,14 @@ export async function GET(request: NextRequest) {
       }
     };
 
-    // Obtener todas las facturas en el rango de fechas
+    // Obtener todas las facturas en el rango de fechas (solo de pagos activos)
     const invoices = await prisma.invoice.findMany({
-      where: dateFilter,
+      where: {
+        ...dateFilter,
+        payment: {
+          isActive: true, // Solo pagos activos
+        },
+      },
       include: {
         payment: {
           include: {

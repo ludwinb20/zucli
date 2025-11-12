@@ -88,10 +88,11 @@ export async function GET() {
       });
     }
 
-    // Ingresos (pagos con status 'paid')
+    // Ingresos (pagos con status 'paid' y activos)
     const paymentsToday = await prisma.payment.aggregate({
       where: {
         status: 'paid',
+        isActive: true, // Solo pagos activos
         createdAt: {
           gte: startOfDay,
           lte: endOfDay,
@@ -105,6 +106,7 @@ export async function GET() {
     const paymentsThisMonth = await prisma.payment.aggregate({
       where: {
         status: 'paid',
+        isActive: true, // Solo pagos activos
         createdAt: {
           gte: startOfMonth,
         },
@@ -145,8 +147,11 @@ export async function GET() {
       activeUsers[roleName] = item._count;
     });
 
-    // Actividad reciente (últimas acciones del sistema)
+    // Actividad reciente (últimas acciones del sistema, solo activas)
     const recentPayments = await prisma.payment.findMany({
+      where: {
+        isActive: true, // Solo pagos activos
+      },
       take: 5,
       orderBy: {
         createdAt: 'desc',

@@ -96,10 +96,21 @@ export async function GET(request: NextRequest) {
         },
         room: true,
         dailyRateItem: {
-          select: {
-            id: true,
-            name: true,
-            basePrice: true,
+          include: {
+            variants: {
+              where: {
+                isActive: true,
+              },
+              orderBy: {
+                name: 'asc',
+              },
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                isActive: true,
+              },
+            },
           },
         },
         dailyRateVariant: {

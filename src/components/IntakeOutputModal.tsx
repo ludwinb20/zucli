@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { X, Utensils } from "lucide-react";
 import { IntakeType, ExcretaType, IntakeOutputType } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 interface IntakeOutputModalProps {
   isOpen: boolean;
@@ -19,10 +20,12 @@ export default function IntakeOutputModal({
   hospitalizationId,
   onSave,
 }: IntakeOutputModalProps) {
+  const { toast } = useToast();
   const [type, setType] = useState<IntakeOutputType>("ingesta");
   const [ingestaType, setIngestaType] = useState<IntakeType>("oral");
   const [cantidad, setCantidad] = useState("");
   const [excretaType, setExcretaType] = useState<ExcretaType>("orina");
+  const [excretaCantidad, setExcretaCantidad] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Limpiar formulario cuando se abre el modal
@@ -32,6 +35,7 @@ export default function IntakeOutputModal({
       setIngestaType("oral");
       setCantidad("");
       setExcretaType("orina");
+      setExcretaCantidad("");
     }
   }, [isOpen]);
 
@@ -45,10 +49,31 @@ export default function IntakeOutputModal({
       };
 
       if (type === "ingesta") {
+        if (!cantidad || isNaN(parseFloat(cantidad))) {
+          toast({
+            title: "Cantidad inválida",
+            description: "Ingrese una cantidad en mililitros para la ingesta",
+            variant: "error",
+          });
+          setIsSaving(false);
+          return;
+        }
         data.ingestaType = ingestaType;
         data.cantidad = parseFloat(cantidad);
       } else {
         data.excretaType = excretaType;
+        if (excretaType === "orina" || excretaType === "drenaje") {
+          if (!excretaCantidad || isNaN(parseFloat(excretaCantidad))) {
+            toast({
+              title: "Cantidad requerida",
+              description: "Debe especificar los mililitros para orina o drenaje",
+              variant: "error",
+            });
+            setIsSaving(false);
+            return;
+          }
+          data.excretaCantidad = parseFloat(excretaCantidad || "0");
+        }
       }
 
       const response = await fetch(
@@ -68,7 +93,11 @@ export default function IntakeOutputModal({
       onClose();
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar el control de ingesta/excreta");
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el control de ingesta/excreta",
+        variant: "error",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -167,25 +196,49 @@ export default function IntakeOutputModal({
 
           {/* Campos para Excreta */}
           {type === "excreta" && (
-            <div>
-              <label htmlFor="excretaType" className="block text-sm font-medium text-gray-700 mb-1">
-                Tipo de Excreta <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="excretaType"
-                value={excretaType}
-                onChange={(e) => setExcretaType(e.target.value as ExcretaType)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2E9589] focus:border-transparent"
-              >
-                <option value="orina">Orina</option>
-                <option value="heces">Heces</option>
-                <option value="vomitos">Vómitos</option>
-                <option value="sng">S.N.G</option>
-                <option value="drenaje">Drenaje</option>
-                <option value="otros">Otros</option>
-              </select>
-            </div>
+            <>
+              <div>
+                <label htmlFor="excretaType" className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Excreta <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="excretaType"
+                  value={excretaType}
+                  onChange={(e) => setExcretaType(e.target.value as ExcretaType)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2E9589] focus:border-transparent"
+                >
+                  <option value="orina">Orina</option>
+                  <option value="heces">Heces</option>
+                  <option value="vomitos">Vómitos</option>
+                  <option value="sng">S.N.G</option>
+                  <option value="drenaje">Drenaje</option>
+                  <option value="otros">Otros</option>
+                </select>
+              </div>
+
+              {(excretaType === "orina" || excretaType === "drenaje") && (
+                <div>
+                  <label htmlFor="excretaCantidad" className="block text-sm font-medium text-gray-700 mb-1">
+                    Cantidad <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      id="excretaCantidad"
+                      value={excretaCantidad}
+                      onChange={(e) => setExcretaCantidad(e.target.value)}
+                      step="0.01"
+                      min="0"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2E9589] focus:border-transparent"
+                      placeholder="Ej: 350"
+                    />
+                    <span className="absolute right-3 top-2.5 text-sm text-gray-500">ml</span>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Botones */}

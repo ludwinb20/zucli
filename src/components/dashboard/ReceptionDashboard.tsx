@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Users,
   Calendar,
@@ -15,6 +16,10 @@ import {
   Activity,
   ArrowRight,
   Bed,
+  Edit2,
+  Save,
+  X,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { ReceptionStats } from '@/types/dashboard';
@@ -25,6 +30,8 @@ import HospitalizationModal from '@/components/HospitalizationModal';
 import SurgeryModal from '@/components/SurgeryModal';
 import { useRouter } from 'next/navigation';
 import { Specialty } from '@/types/appointments';
+import { MedicationName } from '@/types/medications';
+import { InlineSpinner } from '@/components/ui/spinner';
 
 export function ReceptionDashboard() {
   const [stats, setStats] = useState<ReceptionStats | null>(null);
@@ -38,12 +45,23 @@ export function ReceptionDashboard() {
   const [showHospitalizationModal, setShowHospitalizationModal] = useState(false);
   const [showSurgeryModal, setShowSurgeryModal] = useState(false);
 
+  // Catálogo de medicamentos
+  const [medications, setMedications] = useState<MedicationName[]>([]);
+  const [medicationsLoading, setMedicationsLoading] = useState(true);
+  const [newMedicationName, setNewMedicationName] = useState('');
+  const [creatingMedication, setCreatingMedication] = useState(false);
+  const [editingMedicationId, setEditingMedicationId] = useState<string | null>(null);
+  const [editingMedicationName, setEditingMedicationName] = useState('');
+  const [updatingMedicationId, setUpdatingMedicationId] = useState<string | null>(null);
+  const [deletingMedicationId, setDeletingMedicationId] = useState<string | null>(null);
+
   // Estado para especialidades (necesario para AppointmentModal)
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
 
   useEffect(() => {
     loadStats();
     loadSpecialties();
+    loadMedicationNames();
   }, []);
 
   const loadStats = async () => {
@@ -73,6 +91,152 @@ export function ReceptionDashboard() {
       }
     } catch (error) {
       console.error('Error loading specialties:', error);
+    }
+  };
+
+  const loadMedicationNames = async () => {
+    try {
+      setMedicationsLoading(true);
+      const response = await fetch('/api/medication-names');
+      if (!response.ok) throw new Error('Error al cargar medicamentos');
+      const data = await response.json();
+      setMedications(data.medications || []);
+    } catch (error) {
+      console.error('Error loading medication names:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los nombres de medicamentos',
+        variant: 'error',
+      });
+    } finally {
+      setMedicationsLoading(false);
+    }
+  };
+
+  const handleCreateMedication = async () => {
+    const trimmed = newMedicationName.trim();
+    if (!trimmed) {
+      toast({
+        title: 'Nombre requerido',
+        description: 'Ingrese un nombre de medicamento',
+        variant: 'error',
+      });
+      return;
+    }
+
+    try {
+      setCreatingMedication(true);
+      const response = await fetch('/api/medication-names', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'No se pudo crear el medicamento');
+      }
+
+      setNewMedicationName('');
+      loadMedicationNames();
+      toast({
+        title: 'Nombre agregado',
+        description: 'El medicamento se ha registrado correctamente',
+        variant: 'success',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'No se pudo registrar el medicamento',
+        variant: 'error',
+      });
+    } finally {
+      setCreatingMedication(false);
+    }
+  };
+
+  const startEditingMedication = (medication: MedicationName) => {
+    setEditingMedicationId(medication.id);
+    setEditingMedicationName(medication.name);
+  };
+
+  const cancelEditingMedication = () => {
+    setEditingMedicationId(null);
+    setEditingMedicationName('');
+    setUpdatingMedicationId(null);
+  };
+
+  const handleUpdateMedication = async (id: string) => {
+    const trimmed = editingMedicationName.trim();
+    if (!trimmed) {
+      toast({
+        title: 'Nombre requerido',
+        description: 'Ingrese un nombre de medicamento',
+        variant: 'error',
+      });
+      return;
+    }
+
+    try {
+      setUpdatingMedicationId(id);
+      const response = await fetch(`/api/medication-names/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'No se pudo actualizar el medicamento');
+      }
+
+      cancelEditingMedication();
+      loadMedicationNames();
+      toast({
+        title: 'Nombre actualizado',
+        description: 'El nombre del medicamento se actualizó correctamente',
+        variant: 'success',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'No se pudo actualizar el medicamento',
+        variant: 'error',
+      });
+    } finally {
+      setUpdatingMedicationId(null);
+    }
+  };
+
+  const handleDeleteMedication = async (id: string) => {
+    try {
+      setDeletingMedicationId(id);
+      const response = await fetch(`/api/medication-names/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'No se pudo eliminar el medicamento');
+      }
+
+      if (editingMedicationId === id) {
+        cancelEditingMedication();
+      }
+      loadMedicationNames();
+      toast({
+        title: 'Nombre eliminado',
+        description: 'El medicamento se ha eliminado del catálogo',
+        variant: 'success',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'No se pudo eliminar el medicamento',
+        variant: 'error',
+      });
+    } finally {
+      setDeletingMedicationId(null);
     }
   };
 
@@ -566,6 +730,120 @@ export function ReceptionDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Catálogo de Medicamentos */}
+        <Card className="bg-white border-gray-200 mt-6">
+          <CardHeader className="border-b border-gray-200">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Stethoscope className="h-5 w-5 text-[#2E9589]" />
+                Catálogo de Medicamentos
+              </CardTitle>
+              <div className="flex w-full md:w-auto gap-2">
+                <Input
+                  value={newMedicationName}
+                  onChange={(e) => setNewMedicationName(e.target.value)}
+                  placeholder="Nombre de medicamento"
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleCreateMedication}
+                  disabled={creatingMedication}
+                  className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+                >
+                  {creatingMedication ? <InlineSpinner size="sm" className="mr-2" /> : <PlusCircle className="h-4 w-4 mr-2" />}
+                  Agregar
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {medicationsLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <InlineSpinner />
+              </div>
+            ) : medications.length === 0 ? (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <p className="text-sm text-gray-500">No hay medicamentos registrados. Agregue uno con el formulario superior.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {medications.map((medication) => {
+                  const isEditing = editingMedicationId === medication.id;
+                  const isUpdating = updatingMedicationId === medication.id;
+                  const isDeleting = deletingMedicationId === medication.id;
+
+                  return (
+                    <div
+                      key={medication.id}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                    >
+                      <div className="flex-1 min-w-0">
+                        {isEditing ? (
+                          <Input
+                            value={editingMedicationName}
+                            onChange={(e) => setEditingMedicationName(e.target.value)}
+                            autoFocus
+                          />
+                        ) : (
+                          <p className="text-sm font-medium text-gray-900 truncate">{medication.name}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Registrado el {new Date(medication.createdAt).toLocaleDateString('es-HN')}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateMedication(medication.id)}
+                              disabled={isUpdating}
+                              className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+                            >
+                              {isUpdating ? <InlineSpinner size="sm" className="mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                              Guardar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={cancelEditingMedication}
+                              disabled={isUpdating}
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Cancelar
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => startEditingMedication(medication)}
+                            >
+                              <Edit2 className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteMedication(medication.id)}
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? <InlineSpinner size="sm" className="mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                              Eliminar
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>

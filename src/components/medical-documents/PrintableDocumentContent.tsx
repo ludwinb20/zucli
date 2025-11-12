@@ -57,7 +57,7 @@ const PrintableDocumentContent = forwardRef<HTMLDivElement, PrintableDocumentCon
     };
 
     return (
-      <div ref={ref} className="bg-white">
+      <div ref={ref} className="bg-white print-wrapper">
         {/* Estilos para impresión */}
         <style jsx global>{`
           @media print {
@@ -69,7 +69,7 @@ const PrintableDocumentContent = forwardRef<HTMLDivElement, PrintableDocumentCon
             
             @page {
               size: letter;
-              margin: 1.5cm;
+              margin: 0;
             }
             
             .print-header {
@@ -88,6 +88,12 @@ const PrintableDocumentContent = forwardRef<HTMLDivElement, PrintableDocumentCon
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
+            .print-wrapper {
+              padding: 1.5cm !important;
+            }
+          }
+          .print-wrapper {
+            padding: 1.5cm;
           }
         `}</style>
 

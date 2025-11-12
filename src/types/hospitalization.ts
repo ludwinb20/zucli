@@ -1,3 +1,5 @@
+import type { MedicationName } from "./medications";
+
 // Tipos para el módulo de hospitalización
 
 export type HospitalizationStatus = 'iniciada' | 'completada';
@@ -74,23 +76,25 @@ export interface CreateExamenFisicoData {
 export interface MedicationControlItem {
   id: string;
   medicationControlId: string;
-  serviceItemId: string;
+  serviceItemId?: string | null;
   variantId?: string | null;
+  medicationNameId?: string | null;
   quantity: number;
   notes?: string | null;
   createdAt: string | Date;
   updatedAt: string | Date;
-  serviceItem: {
+  serviceItem?: {
     id: string;
     name: string;
     type: string;
     basePrice: number;
-  };
+  } | null;
   variant?: {
     id: string;
     name: string;
     price: number;
   } | null;
+  medicationName?: MedicationName | null;
 }
 
 export interface MedicationControl {
@@ -103,8 +107,9 @@ export interface MedicationControl {
 }
 
 export interface CreateMedicationControlItemData {
-  serviceItemId: string;
+  serviceItemId?: string;
   variantId?: string;
+  medicationNameId?: string;
   quantity: number;
 }
 
@@ -266,6 +271,7 @@ export interface IntakeOutputControl {
   cantidad?: number | null; // ml
   // Campos para excretas
   excretaType?: ExcretaType | null;
+  excretaCantidad?: number | null; // ml
   createdAt: string | Date;
   updatedAt: string | Date;
 }
@@ -277,6 +283,7 @@ export interface CreateIntakeOutputControlData {
   cantidad?: number;
   // Para excretas
   excretaType?: ExcretaType;
+  excretaCantidad?: number;
 }
 
 export interface Room {
@@ -327,6 +334,12 @@ export interface HospitalizationWithRelations extends Hospitalization {
     id: string;
     name: string;
     basePrice: number;
+    variants?: Array<{
+      id: string;
+      name: string;
+      price: number;
+      isActive?: boolean;
+    }>;
   } | null;
   dailyRateVariant?: {
     id: string;

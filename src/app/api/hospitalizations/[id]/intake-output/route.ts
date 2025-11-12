@@ -45,6 +45,7 @@ export async function POST(
     const { id } = await context.params;
     const body = await request.json();
     const { type, ingestaType, cantidad, excretaType } = body;
+    const excretaCantidad = body.excretaCantidad;
 
     // Validar que la hospitalización existe y está activa
     const hospitalization = await prisma.hospitalization.findUnique({
@@ -67,7 +68,7 @@ export async function POST(
 
     // Validar según el tipo
     if (type === "ingesta") {
-      if (!ingestaType || !cantidad) {
+      if (!ingestaType || cantidad === undefined || cantidad === null) {
         return NextResponse.json(
           { error: "Para ingestas, se requiere tipo y cantidad" },
           { status: 400 }
@@ -77,6 +78,13 @@ export async function POST(
       if (!excretaType) {
         return NextResponse.json(
           { error: "Para excretas, se requiere el tipo" },
+          { status: 400 }
+        );
+      }
+
+      if ((excretaType === "orina" || excretaType === "drenaje") && (excretaCantidad === undefined || excretaCantidad === null)) {
+        return NextResponse.json(
+          { error: "Debe especificar la cantidad en ml para orina o drenaje" },
           { status: 400 }
         );
       }
@@ -95,6 +103,10 @@ export async function POST(
         ingestaType: type === "ingesta" ? ingestaType : null,
         cantidad: type === "ingesta" && cantidad ? parseFloat(cantidad) : null,
         excretaType: type === "excreta" ? excretaType : null,
+        excretaCantidad:
+          type === "excreta" && (excretaType === "orina" || excretaType === "drenaje") && excretaCantidad !== undefined
+            ? parseFloat(excretaCantidad)
+            : null,
       },
     });
 

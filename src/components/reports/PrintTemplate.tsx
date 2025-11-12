@@ -15,7 +15,7 @@ interface PrintTemplateProps {
 export const PrintTemplate = React.forwardRef<HTMLDivElement, PrintTemplateProps>(
   ({ children, title, startDate, endDate, hospitalInfo }, ref) => {
     return (
-      <div ref={ref} className="p-8 bg-white">
+      <div ref={ref} className="print-template bg-white p-8">
         {/* Header */}
         <div className="text-center mb-8 border-b-2 border-gray-300 pb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -48,13 +48,21 @@ export const PrintTemplate = React.forwardRef<HTMLDivElement, PrintTemplateProps
           @media print {
             @page {
               size: letter;
-              margin: 1.5cm;
+              margin: 0;
             }
             
             body {
               print-color-adjust: exact;
               -webkit-print-color-adjust: exact;
+              margin: 0 !important;
+              padding: 0 !important;
             }
+            .print-template {
+              padding: 1.5cm !important;
+            }
+          }
+          .print-template {
+            padding: 1.5cm;
           }
         `}</style>
       </div>

@@ -53,6 +53,44 @@ export async function POST(
       );
     }
 
+    // Validar items
+    for (const item of body.items) {
+      if (!item.serviceItemId && !item.medicationNameId) {
+        return NextResponse.json(
+          { error: 'Cada medicamento debe tener un servicio asociado o un nombre del catálogo' },
+          { status: 400 }
+        );
+      }
+
+      if (item.medicationNameId) {
+        const medicationName = await prisma.medicationName.findUnique({
+          where: { id: item.medicationNameId },
+          select: { id: true },
+        });
+
+        if (!medicationName) {
+          return NextResponse.json(
+            { error: 'Nombre de medicamento no válido' },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (item.serviceItemId) {
+        const serviceItem = await prisma.serviceItem.findUnique({
+          where: { id: item.serviceItemId },
+          select: { id: true },
+        });
+
+        if (!serviceItem) {
+          return NextResponse.json(
+            { error: 'Servicio no válido para el medicamento' },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Crear el control de medicamentos con sus items
     const medicationControl = await prisma.medicationControl.create({
       data: {
@@ -60,8 +98,9 @@ export async function POST(
         notes: null,
         items: {
           create: body.items.map(item => ({
-            serviceItemId: item.serviceItemId,
+            serviceItemId: item.serviceItemId || null,
             variantId: item.variantId || null,
+            medicationNameId: item.medicationNameId || null,
             quantity: item.quantity,
             notes: null,
           })),
@@ -72,6 +111,7 @@ export async function POST(
           include: {
             serviceItem: true,
             variant: true,
+            medicationName: true,
           },
         },
       },
@@ -124,6 +164,7 @@ export async function GET(
           include: {
             serviceItem: true,
             variant: true,
+            medicationName: true,
           },
         },
       },

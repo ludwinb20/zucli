@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // Configurar la raíz del workspace para Turbopack
+  // Esto evita el warning cuando hay múltiples lockfiles en directorios padre
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   webpack: (config) => {
     config.externals.push({
       'pdf-parse': 'commonjs pdf-parse',

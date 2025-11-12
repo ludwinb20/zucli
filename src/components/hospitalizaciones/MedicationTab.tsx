@@ -26,7 +26,7 @@ export default function MedicationTab({
   const medicationItems = hospitalization.medicationControls?.flatMap((control) =>
     control.items.map((item) => ({
       id: item.id,
-      medicationName: item.serviceItem.name,
+      medicationName: item.serviceItem?.name ?? item.medicationName?.name ?? "Medicamento",
       variant: item.variant?.name,
       quantity: item.quantity,
       time: new Date(control.createdAt),

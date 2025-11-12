@@ -206,6 +206,18 @@ model SalaDoctor {
   @@map("sala_doctors")
 }
 
+// Catálogo simple de nombres de medicamentos para recepción
+model MedicationName {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  medicationControlItems MedicationControlItem[]
+
+  @@map("medication_names")
+}
+
 // Modelo de Hospitalización
 model Hospitalization {
   id                   String   @id @default(cuid())
@@ -357,6 +369,7 @@ model IntakeOutputControl {
   cantidad          Float?   // Cantidad en ml (solo si type = "ingesta")
   // Campos para excretas
   excretaType       String?  // "orina", "heces", "vomitos", "sng", "drenaje", "otros" (solo si type = "excreta")
+  excretaCantidad   Float?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   
@@ -411,16 +424,18 @@ model MedicationControl {
 model MedicationControlItem {
   id                  String   @id @default(cuid())
   medicationControlId String
-  serviceItemId       String   // Referencia al item de servicio (medicamento o servicio)
+  serviceItemId       String?  // Referencia al item de servicio (opcional)
   variantId           String?  // Variante del item (opcional)
+  medicationNameId    String?  // Referencia a catálogo simple de medicamentos
   quantity            Int      @default(1)
   notes               String?  @db.Text
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   
   medicationControl MedicationControl  @relation(fields: [medicationControlId], references: [id], onDelete: Cascade)
-  serviceItem       ServiceItem        @relation(fields: [serviceItemId], references: [id])
+  serviceItem       ServiceItem?        @relation(fields: [serviceItemId], references: [id])
   variant           ServiceItemVariant? @relation(fields: [variantId], references: [id])
+  medicationName    MedicationName?     @relation(fields: [medicationNameId], references: [id])
   
   @@map("medication_control_items")
 }
@@ -957,6 +972,7 @@ model Payment {
   status        String   @default("pendiente") // pendiente, pagado, cancelado
   total         Float    // Total calculado del pago
   paymentMethod String?  // "efectivo", "tarjeta", "transferencia" (solo se define cuando se marca como pagado)
+  isActive      Boolean  @default(true) // Soft delete: false si el pago fue desactivado/eliminado
   
   // Descuentos
   discountAmount Float?   @default(0) // Monto del descuento calculado
@@ -981,6 +997,7 @@ model Payment {
   
   invoices Invoice[] // Facturas/recibos generados de este pago
   refunds  Refund[]   // Reembolsos asociados a este pago
+  partialPayments PartialPayment[] // Pagos parciales por método
   
   @@map("payments")
 }
@@ -1002,6 +1019,23 @@ model Refund {
   payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   
   @@map("refunds")
+}
+
+// Modelo de Pagos Parciales
+model PartialPayment {
+  id        String   @id @default(cuid())
+  paymentId String
+  
+  method    String   // "efectivo", "tarjeta", "transferencia"
+  amount    Float    // Monto pagado con este método
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relaciones
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  
+  @@map("partial_payments")
 }
 
 // ============================================

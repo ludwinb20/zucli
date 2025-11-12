@@ -94,7 +94,7 @@ export default function HospitalizationModal({
           roomId: hospitalization.roomId || "",
           surgeryId: "",
           dailyRateItemId: hospitalization.dailyRateItemId || "",
-          dailyRateVariantId: "",
+          dailyRateVariantId: hospitalization.dailyRateVariant?.id || "",
           diagnosis: hospitalization.diagnosis || "",
           notes: hospitalization.notes || "",
         });

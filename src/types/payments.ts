@@ -21,6 +21,15 @@ export type PaymentItemWithRelations = TransactionItemWithRelations;
 // REEMBOLSOS
 // ============================================
 
+export interface PartialPayment {
+  id: string;
+  paymentId: string;
+  method: PaymentMethod;
+  amount: number;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
 export interface Refund {
   id: string;
   paymentId: string;
@@ -51,6 +60,7 @@ export interface Payment {
   status: PaymentStatus;
   total: number;
   paymentMethod?: string | null;
+  isActive: boolean;
   discountAmount?: number;
   discountType?: 'percentage' | 'absolute' | null;
   discountValue?: number | null;
@@ -98,8 +108,16 @@ export interface PaymentWithRelations extends Payment {
   // Items obtenidos de la fuente
   items?: TransactionItemWithRelations[];
   
+  // Pagos parciales asociados
+  partialPayments?: PartialPayment[];
+  
   // Reembolsos asociados
   refunds?: Refund[];
+  
+  // Facturas asociadas
+  invoices?: Array<{
+    id: string;
+  }>;
 }
 
 // ============================================

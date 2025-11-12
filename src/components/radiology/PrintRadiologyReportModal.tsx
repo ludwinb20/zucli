@@ -28,7 +28,6 @@ export default function PrintRadiologyReportModal({
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    documentTitle: order ? `Informe_RayosX_${order.patient.firstName}_${order.patient.lastName}_${order.id.substring(0, 10)}` : 'Informe_RayosX',
   });
 
   if (!order) return null;

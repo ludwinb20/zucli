@@ -90,6 +90,8 @@ export default function ReportesPage() {
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           
           .print\\:hidden {
@@ -102,7 +104,7 @@ export default function ReportesPage() {
           
           @page {
             size: letter;
-            margin: 1cm;
+            margin: 0;
           }
         }
       `}</style>

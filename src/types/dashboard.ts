@@ -46,6 +46,7 @@ export interface CashierStats {
       card: number;
       transfer: number;
     };
+    last7Days: ChartDataPoint[];
   };
   invoices: {
     legal: number;

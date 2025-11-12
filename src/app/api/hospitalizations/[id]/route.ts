@@ -39,10 +39,21 @@ export async function GET(
         },
         room: true,
         dailyRateItem: {
-          select: {
-            id: true,
-            name: true,
-            basePrice: true,
+          include: {
+            variants: {
+              where: {
+                isActive: true,
+              },
+              orderBy: {
+                name: 'asc',
+              },
+              select: {
+                id: true,
+                name: true,
+                price: true,
+                isActive: true,
+              },
+            },
           },
         },
         dailyRateVariant: {
@@ -126,14 +137,12 @@ export async function GET(
     }
 
     // Calcular costo si hay dailyRateItem
-    let costCalculation = null;
-    if (hospitalization.dailyRateItem) {
-      costCalculation = calculateHospitalizationCost(
-        hospitalization.admissionDate,
-        hospitalization.dailyRateItem.basePrice,
-        hospitalization.dischargeDate
-      );
-    }
+    const dailyRateValue = getDailyRate(hospitalization.dailyRateItem, hospitalization.dailyRateVariant);
+    const costCalculation = calculateHospitalizationCost(
+      hospitalization.admissionDate,
+      dailyRateValue,
+      hospitalization.dischargeDate
+    );
 
     return NextResponse.json({
       ...hospitalization,
@@ -162,7 +171,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { roomId, dailyRateItemId, diagnosis, notes, status, dischargeDate, dischargeNotes } = body;
+    const { roomId, dailyRateItemId, dailyRateVariantId, diagnosis, notes, status, dischargeDate, dischargeNotes } = body;
 
     // Verificar que la hospitalización existe
     const existingHosp = await prisma.hospitalization.findUnique({
@@ -243,14 +252,56 @@ export async function PATCH(
     const updateData: {
       roomId?: string | null;
       dailyRateItemId?: string | null;
+      dailyRateVariantId?: string | null;
       diagnosis?: string | null;
       notes?: string | null;
     } = {};
 
+    let targetDailyRateItemId = existingHosp.dailyRateItemId;
+
     if (roomId !== undefined) updateData.roomId = roomId;
-    if (dailyRateItemId !== undefined) updateData.dailyRateItemId = dailyRateItemId;
+    if (dailyRateItemId !== undefined) {
+      const normalizedItemId = dailyRateItemId || null;
+      updateData.dailyRateItemId = normalizedItemId;
+      targetDailyRateItemId = normalizedItemId ?? undefined;
+      // Si se cambia el item y no se especifica variante, limpiar la variante
+      if (dailyRateVariantId === undefined) {
+        updateData.dailyRateVariantId = null;
+      }
+    }
     if (diagnosis !== undefined) updateData.diagnosis = diagnosis;
     if (notes !== undefined) updateData.notes = notes;
+
+    if (dailyRateVariantId !== undefined) {
+      if (!dailyRateVariantId) {
+        updateData.dailyRateVariantId = null;
+      } else {
+        const itemIdForVariant = targetDailyRateItemId ?? existingHosp.dailyRateItemId;
+        if (!itemIdForVariant) {
+          return NextResponse.json(
+            { error: 'No se puede asignar una variante sin un servicio de cobro diario configurado' },
+            { status: 400 }
+          );
+        }
+
+        const variantExists = await prisma.serviceItemVariant.findFirst({
+          where: {
+            id: dailyRateVariantId,
+            serviceItemId: itemIdForVariant,
+            isActive: true,
+          },
+        });
+
+        if (!variantExists) {
+          return NextResponse.json(
+            { error: 'La variante seleccionada no es válida para el servicio de hospitalización' },
+            { status: 400 }
+          );
+        }
+
+        updateData.dailyRateVariantId = dailyRateVariantId;
+      }
+    }
 
     // Si se cambia la habitación, actualizar status de ambas
     if (roomId && roomId !== existingHosp.roomId) {

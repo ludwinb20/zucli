@@ -458,7 +458,15 @@ export default function TimelineTab({
                               <p><span className="font-medium">Cantidad:</span> {intakeOutput.cantidad} ml</p>
                             </div>
                           ) : (
-                            <p><span className="font-medium">Tipo:</span> {intakeOutput.excretaType === 'sng' ? 'S.N.G' : intakeOutput.excretaType}</p>
+                            <div className="space-y-1 text-xs text-gray-700">
+                              <p><span className="font-medium">Tipo:</span> {intakeOutput.excretaType === 'sng' ? 'S.N.G' : intakeOutput.excretaType}</p>
+                              {(intakeOutput.excretaType === 'orina' || intakeOutput.excretaType === 'drenaje') && intakeOutput.excretaCantidad !== null && intakeOutput.excretaCantidad !== undefined && (
+                                <p><span className="font-medium">Cantidad:</span> {intakeOutput.excretaCantidad} ml</p>
+                              )}
+                              {intakeOutput.excretaType === 'otros' && (
+                                <p className="text-gray-500">Registrar detalles adicionales en notas de enfermería</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -620,7 +628,7 @@ export default function TimelineTab({
                           <div className="mt-2 space-y-1">
                             {medication.items?.map((item, idx) => (
                               <div key={item.id} className="text-xs text-gray-700 pl-2">
-                                <span className="font-medium">{item.quantity}x</span> {item.serviceItem.name}
+                                <span className="font-medium">{item.quantity}x</span> {item.serviceItem?.name ?? item.medicationName?.name ?? 'Medicamento'}
                                 {item.variant && <span className="text-indigo-600"> ({item.variant.name})</span>}
                               </div>
                             ))}

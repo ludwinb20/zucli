@@ -65,6 +65,11 @@ export default function IntakeOutputTab({
                     <p className="font-bold text-lg text-red-700 capitalize">
                       {control.excretaType === 'sng' ? 'S.N.G' : control.excretaType}
                     </p>
+                    {(control.excretaType === 'orina' || control.excretaType === 'drenaje') && control.excretaCantidad !== null && control.excretaCantidad !== undefined && (
+                      <p className="text-sm text-red-600 mt-2">
+                        Cantidad: <span className="font-semibold">{control.excretaCantidad} ml</span>
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
