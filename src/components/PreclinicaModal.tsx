@@ -73,14 +73,7 @@ export default function PreclinicaModal({
       newErrors.satO2 = 'La saturación de oxígeno es requerida';
     }
 
-    if (!formData.peso.trim()) {
-      newErrors.peso = 'El peso es requerido';
-    }
-
-    if (!formData.talla.trim()) {
-      newErrors.talla = 'La talla es requerida';
-    }
-
+    // Peso y talla son opcionales
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -234,7 +227,7 @@ export default function PreclinicaModal({
 
               <div className="space-y-2">
                 <Label htmlFor="peso" className="text-sm font-medium text-gray-700">
-                  Peso (lbs) *
+                  Peso (lbs)
                 </Label>
                 <Input
                   id="peso"
@@ -243,16 +236,13 @@ export default function PreclinicaModal({
                   value={formData.peso}
                   onChange={(e) => handleInputChange('peso', e.target.value)}
                   placeholder="150.0"
-                  className={`border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589] ${errors.peso ? 'border-red-500' : ''}`}
+                  className="border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
                 />
-                {errors.peso && (
-                  <p className="text-sm text-red-500">{errors.peso}</p>
-                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="talla" className="text-sm font-medium text-gray-700">
-                  Talla (cm) *
+                  Talla (cm)
                 </Label>
                 <Input
                   id="talla"
@@ -261,11 +251,8 @@ export default function PreclinicaModal({
                   value={formData.talla}
                   onChange={(e) => handleInputChange('talla', e.target.value)}
                   placeholder="170.0"
-                  className={`border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589] ${errors.talla ? 'border-red-500' : ''}`}
+                  className="border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
                 />
-                {errors.talla && (
-                  <p className="text-sm text-red-500">{errors.talla}</p>
-                )}
               </div>
             </div>
           </div>
@@ -335,7 +322,7 @@ export default function PreclinicaModal({
               disabled={isLoading}
               className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
             >
-              {isLoading ? 'Guardando...' : 'Marcar como Pendiente'}
+              {isLoading ? 'Guardando...' : isHospitalization ? 'Guardar' : 'Marcar como Pendiente'}
             </Button>
           </DialogFooter>
         </form>

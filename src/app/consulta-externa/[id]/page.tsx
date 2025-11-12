@@ -793,20 +793,24 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                                <p className="text-sm font-medium">{preclinica.satO2}%</p>
                              </div>
                            </div>
-                           <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                             <Weight size={18} className="text-gray-500 flex-shrink-0" />
-                             <div>
-                               <Label className="text-xs text-gray-600">Peso</Label>
-                               <p className="text-sm font-medium">{preclinica.peso} lbs</p>
+                           {preclinica.peso && (
+                             <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                               <Weight size={18} className="text-gray-500 flex-shrink-0" />
+                               <div>
+                                 <Label className="text-xs text-gray-600">Peso</Label>
+                                 <p className="text-sm font-medium">{preclinica.peso} lbs</p>
+                               </div>
                              </div>
-                           </div>
-                         <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                           <Ruler size={18} className="text-indigo-500 flex-shrink-0" />
-                           <div>
-                             <Label className="text-xs text-gray-600">Talla</Label>
-                             <p className="text-sm font-medium">{preclinica.talla} cm</p>
-                  </div>
-                           </div>
+                           )}
+                           {preclinica.talla && (
+                             <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                               <Ruler size={18} className="text-indigo-500 flex-shrink-0" />
+                               <div>
+                                 <Label className="text-xs text-gray-600">Talla</Label>
+                                 <p className="text-sm font-medium">{preclinica.talla} cm</p>
+                               </div>
+                             </div>
+                           )}
                          </div>
 
                          {/* Evaluación Médica */}
