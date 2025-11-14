@@ -89,10 +89,19 @@ export default function ConsultaExternaPage() {
     }
   }, [user, toast]);
 
+  // Proteger acceso - recepcion no debe tener acceso
+  useEffect(() => {
+    if (user && user.role?.name === 'recepcion') {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
   // Cargar datos iniciales
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (user && user.role?.name !== 'recepcion') {
+      loadData();
+    }
+  }, [loadData, user]);
 
   // Filtrar citas localmente (búsqueda por texto y especialidad)
   const filteredAppointments = appointments.filter((appointment) => {
@@ -136,6 +145,11 @@ export default function ConsultaExternaPage() {
     router.push(`/consulta-externa/${appointment.id}`);
   };
 
+  // Si el usuario es recepcion, no mostrar nada (será redirigido)
+  if (!user || user.role?.name === 'recepcion') {
+    return null;
+  }
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">
       {/* Header Section */}
@@ -146,7 +160,7 @@ export default function ConsultaExternaPage() {
               Consulta Externa
             </h2>
             <p className="text-gray-600">
-              {user?.role?.name === 'admin' 
+              {user?.role?.name === 'admin'
                 ? 'Todas las citas pendientes para consulta médica'
                 : `Citas pendientes de ${user?.specialty?.name || 'tu especialidad'}`
               }
@@ -308,6 +322,7 @@ export default function ConsultaExternaPage() {
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }

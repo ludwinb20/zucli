@@ -13,16 +13,37 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   User,
   Bed,
-  Calendar,
   DollarSign,
   FileText,
   Activity,
   LogOut,
   X,
 } from "lucide-react";
-import { HospitalizationDetailsModalProps } from "@/types/hospitalization";
+import { HospitalizationDetailsModalProps, HospitalizationWithRelations } from "@/types/hospitalization";
 import { calculateHospitalizationCost, formatDaysOfStay, getDailyRate } from "@/lib/hospitalization-helpers";
 import DischargeModal from "@/components/DischargeModal";
+
+// Interfaz extendida para incluir campos adicionales de la API
+interface HospitalizationWithPaymentInfo extends Omit<HospitalizationWithRelations, 'salaDoctor'> {
+  medicoSalaUser?: {
+    id: string;
+    name: string;
+    username: string;
+  } | null;
+  pendingDays?: {
+    daysCount: number;
+    startDate: string;
+    endDate: string;
+    hasPendingDays: boolean;
+    estimatedCost: number;
+  };
+  paymentSummary?: {
+    totalPaid: number;
+    totalPending: number;
+    totalPayments: number;
+    pendingPaymentsCount: number;
+  };
+}
 
 export default function HospitalizationDetailsModal({
   isOpen,
@@ -108,8 +129,8 @@ export default function HospitalizationDetailsModal({
                   </h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-gray-500">Doctor Responsable</p>
-                      <p className="font-medium">{hospitalization.salaDoctor.name}</p>
+                      <p className="text-gray-500">Médico de Sala Responsable</p>
+                      <p className="font-medium">{(hospitalization as HospitalizationWithPaymentInfo).medicoSalaUser?.name || 'No asignado'}</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Habitación</p>
@@ -182,6 +203,62 @@ export default function HospitalizationDetailsModal({
                   </CardContent>
                 </Card>
               )}
+
+              {/* Información de Días Pendientes y Pagos (si está disponible) */}
+              {(hospitalization as HospitalizationWithPaymentInfo).pendingDays || (hospitalization as HospitalizationWithPaymentInfo).paymentSummary ? (
+                <Card className="border-blue-200">
+                  <CardContent className="pt-6">
+                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-blue-500" />
+                      Estado de Pagos
+                    </h3>
+                    
+                    {/* Días Pendientes */}
+                    {(hospitalization as HospitalizationWithPaymentInfo).pendingDays && (hospitalization as HospitalizationWithPaymentInfo).pendingDays?.hasPendingDays && (
+                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Días Pendientes de Pago:</span>
+                          <span className="text-lg font-bold text-yellow-700">
+                            {(hospitalization as HospitalizationWithPaymentInfo).pendingDays?.daysCount} día{((hospitalization as HospitalizationWithPaymentInfo).pendingDays?.daysCount || 0) !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          Desde: {new Date((hospitalization as HospitalizationWithPaymentInfo).pendingDays?.startDate || '').toLocaleDateString('es-ES')} hasta: {new Date((hospitalization as HospitalizationWithPaymentInfo).pendingDays?.endDate || '').toLocaleDateString('es-ES')}
+                        </p>
+                        <p className="text-sm font-semibold text-gray-900 mt-2">
+                          Costo estimado: <span className="text-[#2E9589]">L{((hospitalization as HospitalizationWithPaymentInfo).pendingDays?.estimatedCost || 0).toFixed(2)}</span>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Resumen de Pagos */}
+                    {(hospitalization as HospitalizationWithPaymentInfo).paymentSummary && (
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500">Total Pagado</p>
+                          <p className="font-medium text-green-600">
+                            L{((hospitalization as HospitalizationWithPaymentInfo).paymentSummary?.totalPaid || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Total Pendiente</p>
+                          <p className="font-medium text-yellow-600">
+                            L{((hospitalization as HospitalizationWithPaymentInfo).paymentSummary?.totalPending || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Pagos Totales</p>
+                          <p className="font-medium">{((hospitalization as HospitalizationWithPaymentInfo).paymentSummary?.totalPayments || 0)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Pagos Pendientes</p>
+                          <p className="font-medium">{((hospitalization as HospitalizationWithPaymentInfo).paymentSummary?.pendingPaymentsCount || 0)}</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : null}
 
               {/* Diagnóstico y Notas */}
               {(hospitalization.diagnosis || hospitalization.notes) && (

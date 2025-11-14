@@ -231,7 +231,7 @@ export default function TimelineTab({
                     <p className="text-sm font-semibold text-gray-900">Ingreso a Hospitalización</p>
                   </div>
                   <div className="mt-2 text-xs text-gray-600">
-                    <p><span className="font-medium">Doctor:</span> {hospitalization.salaDoctor.name}</p>
+                    <p><span className="font-medium">Médico de Sala:</span> {hospitalization.medicoSalaUser?.name || 'No asignado'}</p>
                     {hospitalization.room && (
                       <p><span className="font-medium">Habitación:</span> {hospitalization.room.number}</p>
                     )}

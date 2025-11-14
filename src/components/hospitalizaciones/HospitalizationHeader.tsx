@@ -114,10 +114,10 @@ export default function HospitalizationHeader({
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
           <div className="flex items-center gap-2 text-white/80 mb-1">
             <Stethoscope className="h-4 w-4" />
-            <span className="text-sm">Doctor Responsable</span>
+            <span className="text-sm">Médico de Sala Responsable</span>
           </div>
           <p className="text-white font-semibold">
-            {hospitalization.salaDoctor.name}
+            {hospitalization.medicoSalaUser?.name || 'No asignado'}
           </p>
         </div>
 

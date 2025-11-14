@@ -65,6 +65,12 @@ export interface Payment {
   discountType?: 'percentage' | 'absolute' | null;
   discountValue?: number | null;
   discountReason?: string | null;
+  
+  // Campos para pagos parciales de hospitalización
+  daysCoveredStartDate?: Date | string | null;
+  daysCoveredEndDate?: Date | string | null;
+  daysCount?: number | null;
+  
   createdBy?: string | null;
   notes?: string | null;
   createdAt: Date | string;

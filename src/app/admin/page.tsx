@@ -130,7 +130,6 @@ export default function AdminPanelPage() {
   const [prices, setPrices] = useState<ServiceItem[]>([]);
   const [radiologyTagId, setRadiologyTagId] = useState<string>("");
   const [rooms, setRooms] = useState<Array<{ id: string; number: string; status: string }>>([]);
-  const [salaDoctors, setSalaDoctors] = useState<Array<{ id: string; name: string }>>([]);
   const [hospitalizationDailyItemId, setHospitalizationDailyItemId] = useState<string>("");
 
   // Modales
@@ -138,10 +137,8 @@ export default function AdminPanelPage() {
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [isConsultaModalOpen, setIsConsultaModalOpen] = useState(false);
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
-  const [isSalaDoctorModalOpen, setIsSalaDoctorModalOpen] = useState(false);
   const [selectedSpecialtyForConsulta, setSelectedSpecialtyForConsulta] = useState<string>("");
   const [selectedRoom, setSelectedRoom] = useState<{ id: string; number: string; status: string } | null>(null);
-  const [selectedSalaDoctor, setSelectedSalaDoctor] = useState<{ id: string; name: string } | null>(null);
   
   // Diálogos de confirmación
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -251,13 +248,6 @@ export default function AdminPanelPage() {
       if (roomsRes.ok) {
         const data = await roomsRes.json();
         setRooms(data || []);
-      }
-
-      // Cargar doctores de sala
-      const salaDoctorsRes = await fetch("/api/sala-doctors");
-      if (salaDoctorsRes.ok) {
-        const data = await salaDoctorsRes.json();
-        setSalaDoctors(data || []);
       }
 
       // Cargar configuración de item diario de hospitalización
@@ -627,107 +617,6 @@ export default function AdminPanelPage() {
   };
 
   // ============================================
-  // DOCTORES DE SALA
-  // ============================================
-
-  const [salaDoctorForm, setSalaDoctorForm] = useState({ id: "", name: "" });
-
-  const handleOpenSalaDoctorModal = (doctor?: { id: string; name: string }) => {
-    if (doctor) {
-      setSalaDoctorForm(doctor);
-      setSelectedSalaDoctor(doctor);
-    } else {
-      setSalaDoctorForm({ id: "", name: "" });
-      setSelectedSalaDoctor(null);
-    }
-    setIsSalaDoctorModalOpen(true);
-  };
-
-  const handleSaveSalaDoctor = async () => {
-    try {
-      if (!salaDoctorForm.name.trim()) {
-        toast({
-          title: "Error",
-          description: "El nombre del doctor es requerido",
-          variant: "error",
-        });
-        return;
-      }
-
-      setSaving(true);
-
-      const url = salaDoctorForm.id ? `/api/sala-doctors/${salaDoctorForm.id}` : "/api/sala-doctors";
-      const method = salaDoctorForm.id ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: salaDoctorForm.name.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Error al guardar");
-      }
-
-      toast({
-        title: "Éxito",
-        description: `Doctor ${salaDoctorForm.id ? "actualizado" : "creado"} exitosamente`,
-        variant: "success",
-      });
-
-      setIsSalaDoctorModalOpen(false);
-      loadData();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Error al guardar el doctor";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "error",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteSalaDoctor = (id: string) => {
-    setConfirmDialog({
-      isOpen: true,
-      title: "Eliminar Doctor de Sala",
-      description: "¿Estás seguro de eliminar este doctor? Esta acción no se puede deshacer.",
-      onConfirm: () => deleteSalaDoctor(id),
-    });
-  };
-
-  const deleteSalaDoctor = async (id: string) => {
-    try {
-      const response = await fetch(`/api/sala-doctors/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Error al eliminar");
-      }
-
-      toast({
-        title: "Éxito",
-        description: "Doctor eliminado exitosamente",
-        variant: "success",
-      });
-
-      loadData();
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Error al eliminar el doctor";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "error",
-      });
-    }
-  };
 
   // ============================================
   // CONSULTA POR ESPECIALIDAD
@@ -1420,71 +1309,6 @@ export default function AdminPanelPage() {
           </CardContent>
         </Card>
 
-        {/* DOCTORES DE SALA */}
-        <Card className="bg-transparent border-gray-200">
-          <CardHeader className="border-b border-gray-200 bg-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Stethoscope className="h-5 w-5 text-[#2E9589]" />
-                <CardTitle className="text-lg font-semibold text-gray-900">
-                  Doctores de Sala ({salaDoctors.length})
-                </CardTitle>
-              </div>
-              <Button
-                onClick={() => handleOpenSalaDoctorModal()}
-                size="sm"
-                className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
-              >
-                <Plus size={16} className="mr-1" />
-                Agregar
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-4">
-            <div className="space-y-2">
-              {salaDoctors.map((doctor) => (
-                <div
-                  key={doctor.id}
-                  className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="p-2 rounded-lg bg-blue-100">
-                      <Stethoscope className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{doctor.name}</h3>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      onClick={() => handleOpenSalaDoctorModal(doctor)}
-                      variant="outline"
-                      size="sm"
-                      className="border-gray-300"
-                    >
-                      <Edit size={14} />
-                    </Button>
-                    <Button
-                      onClick={() => handleDeleteSalaDoctor(doctor.id)}
-                      variant="outline"
-                      size="sm"
-                      className="border-red-300 text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 size={14} />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-
-              {salaDoctors.length === 0 && (
-                <div className="text-center py-12">
-                  <Stethoscope size={48} className="text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No hay doctores de sala registrados</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* MODAL DE ESPECIALIDAD */}
@@ -1698,54 +1522,6 @@ export default function AdminPanelPage() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL DE DOCTOR DE SALA */}
-      <Dialog open={isSalaDoctorModalOpen} onOpenChange={setIsSalaDoctorModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{salaDoctorForm.id ? "Editar" : "Nuevo"} Doctor de Sala</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="doctor-name">Nombre Completo *</Label>
-              <Input
-                id="doctor-name"
-                value={salaDoctorForm.name}
-                onChange={(e) =>
-                  setSalaDoctorForm({ ...salaDoctorForm, name: e.target.value })
-                }
-                placeholder="Ej: Dr. Juan Pérez"
-              />
-              <p className="text-xs text-gray-500">
-                Estos doctores no tendrán usuario en el sistema
-              </p>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-2">
-            <Button
-              onClick={() => setIsSalaDoctorModalOpen(false)}
-              variant="outline"
-              disabled={saving}
-            >
-              <X size={16} className="mr-1" />
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveSalaDoctor}
-              disabled={saving}
-              className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
-            >
-              {saving ? (
-                <InlineSpinner size="sm" className="mr-2" />
-              ) : (
-                <Save size={16} className="mr-1" />
-              )}
-              Guardar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* MODAL DE CONFIGURACIÓN DE CONSULTA */}
       <Dialog open={isConsultaModalOpen} onOpenChange={setIsConsultaModalOpen}>

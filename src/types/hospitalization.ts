@@ -304,7 +304,7 @@ export interface SalaDoctor {
 export interface Hospitalization {
   id: string;
   patientId: string;
-  salaDoctorId: string;
+  medicoSalaUserId?: string | null;
   roomId?: string | null;
   dailyRateItemId?: string | null;
   admissionDate: string;
@@ -325,10 +325,11 @@ export interface HospitalizationWithRelations extends Hospitalization {
     birthDate: string;
     gender: string;
   };
-  salaDoctor: {
+  medicoSalaUser?: {
     id: string;
     name: string;
-  };
+    username: string;
+  } | null;
   room?: Room | null;
   dailyRateItem?: {
     id: string;
@@ -369,7 +370,7 @@ export interface HospitalizationWithRelations extends Hospitalization {
 
 export interface CreateHospitalizationData {
   patientId: string;
-  salaDoctorId: string;
+  medicoSalaUserId?: string;
   roomId?: string;
   dailyRateItemId?: string;
   dailyRateVariantId?: string;

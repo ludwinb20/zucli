@@ -110,7 +110,7 @@ export async function GET() {
             number: true,
           },
         },
-        salaDoctor: {
+        medicoSalaUser: {
           select: {
             name: true,
           },
@@ -146,7 +146,7 @@ export async function GET() {
         patient: `${h.patient.firstName} ${h.patient.lastName}`,
         identityNumber: h.patient.identityNumber,
         room: h.room?.number || 'Sin asignar',
-        doctor: h.salaDoctor.name,
+        doctor: h.medicoSalaUser?.name || 'No asignado',
         admissionDate: h.admissionDate.toISOString(),
       })),
     };

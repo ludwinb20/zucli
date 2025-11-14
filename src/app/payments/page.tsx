@@ -59,6 +59,7 @@ import PaymentModal from "@/components/PaymentModal";
 import PaymentDetailsModal from "@/components/PaymentDetailsModal";
 import EditPaymentItemsModal from "@/components/EditPaymentItemsModal";
 import RefundModal from "@/components/RefundModal";
+import HospitalizationPartialPaymentModal from "@/components/HospitalizationPartialPaymentModal";
 
 export default function PaymentsPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -82,6 +83,9 @@ export default function PaymentsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithRelations | null>(null);
   const [rangeWarnings, setRangeWarnings] = useState<string[]>([]);
+  const [isPartialPaymentModalOpen, setIsPartialPaymentModalOpen] = useState(false);
+  const [selectedHospitalizationId, setSelectedHospitalizationId] = useState<string | null>(null);
+  const [hospitalizationStatus, setHospitalizationStatus] = useState<Record<string, { isActive: boolean; hasPendingDays: boolean }>>({});
 
   // Verificar permisos
   useEffect(() => {
@@ -167,6 +171,40 @@ export default function PaymentsPage() {
     loadPayments();
   }, [loadPayments]);
 
+  // Cargar estados de hospitalizaciones activas para mostrar botón de facturar días pendientes
+  useEffect(() => {
+    const loadHospitalizationStatuses = async () => {
+      const hospitalizationPayments = payments.filter(p => p.hospitalizationId);
+      if (hospitalizationPayments.length === 0) return;
+
+      const statuses: Record<string, { isActive: boolean; hasPendingDays: boolean }> = {};
+      
+      await Promise.all(
+        hospitalizationPayments.map(async (payment) => {
+          if (!payment.hospitalizationId) return;
+          try {
+            const response = await fetch(`/api/hospitalizations/${payment.hospitalizationId}`);
+            if (response.ok) {
+              const data = await response.json();
+              statuses[payment.hospitalizationId] = {
+                isActive: data.status === 'iniciada',
+                hasPendingDays: data.pendingDays?.hasPendingDays || false,
+              };
+            }
+          } catch (error) {
+            console.error(`Error loading hospitalization ${payment.hospitalizationId}:`, error);
+          }
+        })
+      );
+
+      setHospitalizationStatus(statuses);
+    };
+
+    if (payments.length > 0) {
+      loadHospitalizationStatuses();
+    }
+  }, [payments]);
+
   // Reset página al cambiar filtros
   const handleStatusFilterChange = (value: string) => {
     setStatusFilter(value);
@@ -245,6 +283,24 @@ export default function PaymentsPage() {
   const handleCloseDelete = () => {
     setIsDeleteModalOpen(false);
     setPaymentToDelete(null);
+  };
+
+  // Abrir modal de pago parcial de hospitalización
+  const handleOpenPartialPayment = (hospitalizationId: string) => {
+    setSelectedHospitalizationId(hospitalizationId);
+    setIsPartialPaymentModalOpen(true);
+  };
+
+  // Cerrar modal de pago parcial
+  const handleClosePartialPayment = () => {
+    setIsPartialPaymentModalOpen(false);
+    setSelectedHospitalizationId(null);
+  };
+
+  // Manejar éxito del pago parcial
+  const handlePartialPaymentSuccess = () => {
+    loadPayments(); // Recargar pagos
+    handleClosePartialPayment();
   };
 
   // Manejar eliminación de pago
@@ -534,6 +590,22 @@ export default function PaymentsPage() {
 
                   {/* Acciones */}
                   <div className="ml-4 flex-shrink-0 flex items-center space-x-2">
+                    {/* Botón de facturar días pendientes para hospitalizaciones activas */}
+                    {payment.hospitalizationId && 
+                     (user?.role.name === "caja" || user?.role.name === "admin") &&
+                     hospitalizationStatus[payment.hospitalizationId]?.isActive &&
+                     hospitalizationStatus[payment.hospitalizationId]?.hasPendingDays && (
+                      <Button
+                        onClick={() => handleOpenPartialPayment(payment.hospitalizationId!)}
+                        variant="outline"
+                        size="sm"
+                        className="border-[#2E9589] text-[#2E9589] hover:bg-[#2E9589]/10"
+                        title="Facturar días pendientes"
+                      >
+                        <DollarSign className="h-4 w-4 mr-1" />
+                        <span className="text-xs">Facturar Pendientes</span>
+                      </Button>
+                    )}
                     {payment.status === "pendiente" && (
                       <>
                         {(user?.role.name === "caja" || user?.role.name === "admin") && (
@@ -658,6 +730,16 @@ export default function PaymentsPage() {
           paymentTotal={selectedPayment.total}
           totalRefunded={selectedPayment.refunds?.reduce((sum, r) => sum + r.amount, 0) || 0}
           onSave={handlePaymentUpdated}
+        />
+      )}
+
+      {/* Modal de Pago Parcial de Hospitalización */}
+      {selectedHospitalizationId && (
+        <HospitalizationPartialPaymentModal
+          isOpen={isPartialPaymentModalOpen}
+          onClose={handleClosePartialPayment}
+          hospitalizationId={selectedHospitalizationId}
+          onSuccess={handlePartialPaymentSuccess}
         />
       )}
 

@@ -4,19 +4,41 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-// GET - Obtener todos los usuarios (solo admin)
-export async function GET() {
+// GET - Obtener usuarios (admin: todos, recepcion/admin: filtrar por rol)
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.role?.name || session.user.role.name !== 'admin') {
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'No autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const roleName = searchParams.get('role');
+
+    // Si hay filtro por rol, permitir a recepcion y admin
+    // Si no hay filtro, solo permitir a admin
+    if (!roleName && session.user.role?.name !== 'admin') {
       return NextResponse.json(
         { error: 'No tienes permisos para acceder a esta información' },
         { status: 403 }
       );
     }
 
+    // Construir filtros
+    const where: { isActive?: boolean; role?: { name: string } } = {
+      isActive: true,
+    };
+
+    if (roleName) {
+      where.role = { name: roleName };
+    }
+
     const users = await prisma.user.findMany({
+      where,
       include: {
         role: true,
         specialty: {
@@ -27,7 +49,7 @@ export async function GET() {
         }
       },
       orderBy: {
-        createdAt: 'desc',
+        name: 'asc',
       },
     });
 
@@ -37,6 +59,11 @@ export async function GET() {
       const { password, ...userWithoutPassword } = user;
       return userWithoutPassword;
     });
+
+    // Si hay filtro por rol, devolver con formato { users: [...] }
+    if (roleName) {
+      return NextResponse.json({ users: usersWithoutPassword });
+    }
 
     return NextResponse.json(usersWithoutPassword);
   } catch (error) {

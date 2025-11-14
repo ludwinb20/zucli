@@ -95,3 +95,152 @@ export function getHospitalizationStatusBadge(status: string): {
   return config[status] || config.iniciada;
 }
 
+/**
+ * Calcula el último día cobrado en una hospitalización
+ * @param payments Array de pagos de hospitalización ordenados por fecha
+ * @returns Fecha del último día cobrado o null si no hay pagos
+ */
+export function getLastPaidDate(
+  payments: Array<{
+    daysCoveredEndDate?: Date | string | null;
+    status?: string;
+    isActive?: boolean;
+  }> | null | undefined
+): Date | null {
+  if (!payments || payments.length === 0) {
+    return null;
+  }
+
+  // Filtrar solo pagos activos y que tengan días cobrados
+  const activePaymentsWithDays = payments
+    .filter(p => p.isActive && p.status !== 'cancelado' && p.daysCoveredEndDate)
+    .map(p => new Date(p.daysCoveredEndDate!))
+    .filter(date => !isNaN(date.getTime()));
+
+  if (activePaymentsWithDays.length === 0) {
+    return null;
+  }
+
+  // Retornar la fecha más reciente
+  return new Date(Math.max(...activePaymentsWithDays.map(d => d.getTime())));
+}
+
+/**
+ * Calcula los días pendientes de pago en una hospitalización
+ * @param admissionDate Fecha de ingreso
+ * @param payments Array de pagos de hospitalización
+ * @param referenceDate Fecha de referencia para calcular (por defecto hoy)
+ * @returns Objeto con información de días pendientes
+ */
+export function calculatePendingDays(
+  admissionDate: Date | string,
+  payments: Array<{
+    daysCoveredEndDate?: Date | string | null;
+    status?: string;
+    isActive?: boolean;
+  }> | null | undefined,
+  referenceDate?: Date | string
+): {
+  startDate: Date;
+  endDate: Date;
+  daysCount: number;
+  hasPendingDays: boolean;
+} {
+  const admission = new Date(admissionDate);
+  const reference = referenceDate ? new Date(referenceDate) : new Date();
+  
+  // Si la referencia es anterior a la admisión, retornar 0 días
+  if (reference < admission) {
+    return {
+      startDate: admission,
+      endDate: admission,
+      daysCount: 0,
+      hasPendingDays: false,
+    };
+  }
+
+  // Obtener el último día cobrado
+  const lastPaidDate = getLastPaidDate(payments);
+
+  // Si no hay pagos, los días pendientes son desde admisión hasta referencia
+  if (!lastPaidDate) {
+    const days = calculateDaysOfStay(admission, reference);
+    return {
+      startDate: admission,
+      endDate: reference,
+      daysCount: days,
+      hasPendingDays: days > 0,
+    };
+  }
+
+  // Calcular días desde el último día pagado + 1 hasta la fecha de referencia
+  const startPending = new Date(lastPaidDate);
+  startPending.setDate(startPending.getDate() + 1); // Día siguiente al último pagado
+  
+  // Si la fecha de inicio de pendientes es posterior a la referencia, no hay días pendientes
+  if (startPending > reference) {
+    return {
+      startDate: admission,
+      endDate: lastPaidDate,
+      daysCount: 0,
+      hasPendingDays: false,
+    };
+  }
+
+  const days = calculateDaysOfStay(startPending, reference);
+  
+  return {
+    startDate: startPending,
+    endDate: reference,
+    daysCount: days,
+    hasPendingDays: days > 0,
+  };
+}
+
+/**
+ * Verifica si hay solapamiento de días entre un rango de fechas y los pagos existentes
+ * @param startDate Fecha de inicio del nuevo pago
+ * @param endDate Fecha de fin del nuevo pago
+ * @param payments Array de pagos existentes de hospitalización
+ * @returns true si hay solapamiento, false si no hay
+ */
+export function hasDaysOverlap(
+  startDate: Date | string,
+  endDate: Date | string,
+  payments: Array<{
+    daysCoveredStartDate?: Date | string | null;
+    daysCoveredEndDate?: Date | string | null;
+    status?: string;
+    isActive?: boolean;
+  }> | null | undefined
+): boolean {
+  if (!payments || payments.length === 0) {
+    return false;
+  }
+
+  const newStart = new Date(startDate);
+  const newEnd = new Date(endDate);
+
+  // Verificar solapamiento con cada pago activo
+  for (const payment of payments) {
+    if (!payment.isActive || payment.status === 'cancelado') {
+      continue;
+    }
+
+    if (!payment.daysCoveredStartDate || !payment.daysCoveredEndDate) {
+      continue;
+    }
+
+    const paidStart = new Date(payment.daysCoveredStartDate);
+    const paidEnd = new Date(payment.daysCoveredEndDate);
+
+    // Verificar si hay solapamiento
+    // Solapamiento ocurre si: (newStart <= paidEnd && newEnd >= paidStart)
+    if (newStart <= paidEnd && newEnd >= paidStart) {
+      return true;
+    }
+  }
+
+  return false;
+}
+

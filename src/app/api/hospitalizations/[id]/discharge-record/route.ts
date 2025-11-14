@@ -159,28 +159,43 @@ export async function POST(
         });
       }
     } else {
-      // Si NO está relacionada con cirugía, manejar pago normalmente
-      const existingPayment = await prisma.payment.findFirst({
-        where: { hospitalizationId }
+      // Si NO está relacionada con cirugía, manejar pago solo para días pendientes
+      const existingPayments = await prisma.payment.findMany({
+        where: {
+          hospitalizationId,
+          isActive: true,
+          status: { not: 'cancelado' },
+        },
+        select: {
+          daysCoveredStartDate: true,
+          daysCoveredEndDate: true,
+          status: true,
+          isActive: true,
+        },
       });
 
-      if (existingPayment) {
-        await prisma.payment.update({
-          where: { id: existingPayment.id },
-          data: {
-            total: costoTotal,
-            notes: `Actualizado automáticamente al dar de alta. ${diasEstancia} días × L${precioPorDia.toFixed(2)} = L${costoTotal.toFixed(2)}`
-          }
-        });
-      } else {
-        // Crear un nuevo pago si no existe
+      // Calcular días pendientes usando helper
+      const { calculatePendingDays } = await import('@/lib/hospitalization-helpers');
+      const pending = calculatePendingDays(
+        hospitalization.admissionDate,
+        existingPayments,
+        dischargeDate
+      );
+
+      // Si hay días pendientes, crear un pago final para esos días
+      if (pending.hasPendingDays && pending.daysCount > 0) {
+        const pendingCost = pending.daysCount * precioPorDia;
+
         await prisma.payment.create({
           data: {
             hospitalizationId,
             patientId: hospitalization.patientId,
-            total: costoTotal,
+            total: pendingCost,
             status: 'pendiente',
-            notes: `Generado automáticamente al dar de alta. ${diasEstancia} días × L${precioPorDia.toFixed(2)} = L${costoTotal.toFixed(2)}`
+            daysCoveredStartDate: pending.startDate,
+            daysCoveredEndDate: pending.endDate,
+            daysCount: pending.daysCount,
+            notes: `Pago final al dar de alta: ${pending.daysCount} día(s) desde ${pending.startDate.toLocaleDateString('es-ES')} hasta ${pending.endDate.toLocaleDateString('es-ES')}. ${pending.daysCount} días × L${precioPorDia.toFixed(2)} = L${pendingCost.toFixed(2)}`
           }
         });
       }

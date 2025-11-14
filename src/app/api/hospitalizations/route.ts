@@ -88,10 +88,11 @@ export async function GET(request: NextRequest) {
             gender: true,
           },
         },
-        salaDoctor: {
+        medicoSalaUser: {
           select: {
             id: true,
             name: true,
+            username: true,
           },
         },
         room: true,
@@ -175,12 +176,26 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { patientId, salaDoctorId, roomId, surgeryId, dailyRateItemId, dailyRateVariantId, diagnosis, notes } = body;
+    const { patientId, medicoSalaUserId, roomId, surgeryId, dailyRateItemId, dailyRateVariantId, diagnosis, notes } = body;
 
     // Validar campos requeridos
-    if (!patientId || !salaDoctorId) {
+    if (!patientId) {
       return NextResponse.json(
-        { error: 'Paciente y doctor son requeridos' },
+        { error: 'Paciente es requerido' },
+        { status: 400 }
+      );
+    }
+
+    // Si el usuario es medico_sala, usar su ID automáticamente
+    let finalMedicoSalaUserId = medicoSalaUserId;
+    if (session.user.role?.name === 'medico_sala' && !medicoSalaUserId) {
+      finalMedicoSalaUserId = session.user.id;
+    }
+
+    // Validar médico de sala (solo si no es medico_sala)
+    if (session.user.role?.name !== 'medico_sala' && !finalMedicoSalaUserId) {
+      return NextResponse.json(
+        { error: 'Médico de sala es requerido' },
         { status: 400 }
       );
     }
@@ -210,7 +225,7 @@ export async function POST(request: NextRequest) {
     const hospitalization = await prisma.hospitalization.create({
       data: {
         patientId,
-        salaDoctorId,
+        medicoSalaUserId: finalMedicoSalaUserId,
         roomId,
         surgeryId,
         dailyRateItemId,
@@ -230,10 +245,11 @@ export async function POST(request: NextRequest) {
             gender: true,
           },
         },
-        salaDoctor: {
+        medicoSalaUser: {
           select: {
             id: true,
             name: true,
+            username: true,
           },
         },
         room: true,

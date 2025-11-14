@@ -41,6 +41,7 @@ model User {
   consultations      Consultation[]     @relation("consultations_as_doctor")
   sales              Sale[]             @relation("sales_as_cashier")
   medicalDocuments   MedicalDocument[]  // Documentos médicos emitidos por el usuario
+  hospitalizationsAsMedicoSala Hospitalization[] @relation("hospitalizations_as_medico_sala") // Hospitalizaciones donde es médico de sala
   
   @@map("users")
 }
@@ -194,18 +195,6 @@ model Room {
   @@map("rooms")
 }
 
-// Modelo de Doctores de Sala (no son usuarios del sistema)
-model SalaDoctor {
-  id        String   @id @default(cuid())
-  name      String   // Nombre completo del doctor
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  hospitalizations Hospitalization[]
-  
-  @@map("sala_doctors")
-}
-
 // Catálogo simple de nombres de medicamentos para recepción
 model MedicationName {
   id        String   @id @default(cuid())
@@ -222,7 +211,7 @@ model MedicationName {
 model Hospitalization {
   id                   String   @id @default(cuid())
   patientId            String
-  salaDoctorId         String   // Doctor de sala responsable
+  medicoSalaUserId     String?  // Usuario médico de sala responsable (nullable para no romper datos existentes)
   roomId               String?  // Relación con habitación
   surgeryId            String?  // Opcional: relación con cirugía
   dailyRateItemId      String?  // Item de cobro diario (ServiceItem)
@@ -236,7 +225,7 @@ model Hospitalization {
   updatedAt            DateTime @updatedAt
   
   patient          Patient              @relation(fields: [patientId], references: [id])
-  salaDoctor       SalaDoctor           @relation(fields: [salaDoctorId], references: [id])
+  medicoSalaUser   User?                @relation("hospitalizations_as_medico_sala", fields: [medicoSalaUserId], references: [id])
   room             Room?                @relation(fields: [roomId], references: [id])
   surgery          Surgery?             @relation(fields: [surgeryId], references: [id])
   dailyRateItem    ServiceItem?         @relation(fields: [dailyRateItemId], references: [id])
@@ -980,6 +969,11 @@ model Payment {
   discountValue  Float?   // Valor del descuento ingresado (porcentaje o monto)
   discountReason String?  @db.Text // Razón del descuento (opcional)
   
+  // Campos para pagos parciales de hospitalización
+  daysCoveredStartDate DateTime? // Fecha de inicio de días cobrados en este pago (solo para hospitalizaciones)
+  daysCoveredEndDate   DateTime? // Fecha de fin de días cobrados en este pago (solo para hospitalizaciones)
+  daysCount            Int?      // Número de días cobrados en este pago (solo para hospitalizaciones)
+  
   // Metadata
   createdBy String?  // Usuario que creó el pago
   notes     String?  @db.Text
@@ -1002,7 +996,7 @@ model Payment {
   @@map("payments")
 }
 
-// Modelo de Reembolsos
+// Modelo de Reembolsos1
 model Refund {
   id        String   @id @default(cuid())
   paymentId String

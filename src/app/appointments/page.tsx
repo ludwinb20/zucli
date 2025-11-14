@@ -58,6 +58,7 @@ import ChangeSpecialtyModal from "@/components/ChangeSpecialtyModal";
 import ChangeStatusModal from "@/components/ChangeStatusModal";
 import PreclinicaModal from "@/components/PreclinicaModal";
 import { PreclinicaData } from "@/types";
+import NuevaConsultaDirectaModal from "@/components/NuevaConsultaDirectaModal";
 
 export default function AppointmentsPage() {
   const { user } = useAuth();
@@ -91,6 +92,7 @@ export default function AppointmentsPage() {
   const [statusToChange, setStatusToChange] =
     useState<AppointmentStatus | null>(null);
   const [preclinicaModalOpen, setPreclinicaModalOpen] = useState(false);
+  const [isNuevaConsultaModalOpen, setIsNuevaConsultaModalOpen] = useState(false);
 
   const loadData = useCallback(async (page: number = currentPage) => {
     try {
@@ -514,13 +516,24 @@ export default function AppointmentsPage() {
               Administra las citas médicas de los pacientes
             </p>
           </div>
-          <Button
-            onClick={handleCreateAppointment}
-            className="flex items-center space-x-2 bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Nueva Cita</span>
-          </Button>
+          <div className="flex items-center space-x-2">
+            {(user?.role?.name === 'especialista' || user?.role?.name === 'admin' || user?.role?.name === 'recepcion') && (
+              <Button
+                onClick={() => setIsNuevaConsultaModalOpen(true)}
+                className="flex items-center space-x-2 bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Nueva Consulta Directa</span>
+              </Button>
+            )}
+            <Button
+              onClick={handleCreateAppointment}
+              className="flex items-center space-x-2 bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Nueva Cita</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -893,6 +906,16 @@ export default function AppointmentsPage() {
           isLoading={loading}
         />
       )}
+
+      {/* Modal de Nueva Consulta Directa */}
+      <NuevaConsultaDirectaModal
+        isOpen={isNuevaConsultaModalOpen}
+        onClose={() => {
+          setIsNuevaConsultaModalOpen(false);
+          // Recargar datos después de cerrar el modal
+          loadData(currentPage);
+        }}
+      />
     </div>
   );
 }

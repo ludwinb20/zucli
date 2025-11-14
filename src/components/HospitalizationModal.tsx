@@ -12,10 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { InlineSpinner } from "@/components/ui/spinner";
-import { SearchableSelect } from "@/components/common/SearchableSelect";
 import { PatientSearch } from "@/components/common/PatientSearch";
 import { PatientModal } from "@/components/PatientModal";
 import { HospitalizationModalProps, Room } from "@/types/hospitalization";
+import { useAuth } from "@/contexts/AuthContext";
 import { Save, X } from "lucide-react";
 
 interface Patient {
@@ -35,9 +35,10 @@ interface Surgery {
   };
 }
 
-interface SalaDoctor {
+interface MedicoSalaUser {
   id: string;
   name: string;
+  username: string;
 }
 
 interface ServiceItem {
@@ -64,18 +65,19 @@ export default function HospitalizationModal({
   hospitalization,
 }: HospitalizationModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
 
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [salaDoctors, setSalaDoctors] = useState<SalaDoctor[]>([]);
+  const [medicoSalaUsers, setMedicoSalaUsers] = useState<MedicoSalaUser[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [surgeries, setSurgeries] = useState<Surgery[]>([]);
   const [dailyRateItem, setDailyRateItem] = useState<ServiceItem | null>(null);
 
   const [formData, setFormData] = useState({
     patientId: "",
-    salaDoctorId: "",
+    medicoSalaUserId: "",
     roomId: "",
     surgeryId: "",
     dailyRateItemId: "",
@@ -90,7 +92,7 @@ export default function HospitalizationModal({
       if (hospitalization) {
         setFormData({
           patientId: hospitalization.patientId,
-          salaDoctorId: hospitalization.salaDoctorId,
+          medicoSalaUserId: hospitalization.medicoSalaUserId || "",
           roomId: hospitalization.roomId || "",
           surgeryId: "",
           dailyRateItemId: hospitalization.dailyRateItemId || "",
@@ -99,9 +101,12 @@ export default function HospitalizationModal({
           notes: hospitalization.notes || "",
         });
       } else {
+        // Si el usuario es medico_sala, usar su ID automáticamente
+        const initialMedicoSalaUserId = user?.role?.name === 'medico_sala' ? (user?.id || "") : "";
+        
         setFormData({
           patientId: "",
-          salaDoctorId: "",
+          medicoSalaUserId: initialMedicoSalaUserId,
           roomId: "",
           surgeryId: "",
           dailyRateItemId: "",
@@ -111,7 +116,7 @@ export default function HospitalizationModal({
         });
       }
     }
-  }, [isOpen, hospitalization]);
+  }, [isOpen, hospitalization, user]);
 
   // Cargar cirugías cuando cambie el paciente
   useEffect(() => {
@@ -142,11 +147,13 @@ export default function HospitalizationModal({
         setPatients(patientsData.patients || []);
       }
 
-      // Cargar doctores de sala
-      const doctorsRes = await fetch("/api/sala-doctors");
-      if (doctorsRes.ok) {
-        const doctorsData = await doctorsRes.json();
-        setSalaDoctors(doctorsData || []);
+      // Cargar usuarios con rol medico_sala (solo si el usuario es recepcion)
+      if (user?.role?.name === 'recepcion') {
+        const usersRes = await fetch("/api/users?role=medico_sala");
+        if (usersRes.ok) {
+          const usersData = await usersRes.json();
+          setMedicoSalaUsers(usersData.users || []);
+        }
       }
 
       // Cargar habitaciones disponibles
@@ -191,10 +198,11 @@ export default function HospitalizationModal({
       return;
     }
 
-    if (!formData.salaDoctorId) {
+    // Validar médico de sala (solo si no es medico_sala, porque su ID ya está asignado)
+    if (user?.role?.name !== 'medico_sala' && !formData.medicoSalaUserId) {
       toast({
         title: "Error",
-        description: "Selecciona un doctor responsable",
+        description: "Selecciona un médico de sala responsable",
         variant: "error",
       });
       return;
@@ -208,6 +216,7 @@ export default function HospitalizationModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          medicoSalaUserId: formData.medicoSalaUserId || null,
           roomId: formData.roomId || null,
           surgeryId: formData.surgeryId || null,
           dailyRateItemId: formData.dailyRateItemId || null,
@@ -316,25 +325,34 @@ export default function HospitalizationModal({
             />
           </div>
 
-          {/* Doctor de Sala */}
+          {/* Médico de Sala */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">Doctor Responsable *</Label>
-            <select
-              value={formData.salaDoctorId}
-              onChange={(e) => setFormData({ ...formData, salaDoctorId: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E9589]"
-            >
-              <option value="">Seleccionar doctor...</option>
-              {salaDoctors.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-            {salaDoctors.length === 0 && (
-              <p className="text-xs text-amber-600">
-                No hay doctores de sala registrados. Agréguelos en el panel de administrador.
-              </p>
+            <Label className="text-sm font-medium text-gray-700">Médico de Sala Responsable *</Label>
+            {user?.role?.name === 'medico_sala' ? (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                <p className="text-xs text-gray-500 mt-1">Se usará tu usuario automáticamente como médico responsable</p>
+              </div>
+            ) : (
+              <>
+                <select
+                  value={formData.medicoSalaUserId}
+                  onChange={(e) => setFormData({ ...formData, medicoSalaUserId: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2E9589]"
+                >
+                  <option value="">Seleccionar médico de sala...</option>
+                  {medicoSalaUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.username})
+                    </option>
+                  ))}
+                </select>
+                {medicoSalaUsers.length === 0 && user?.role?.name === 'recepcion' && (
+                  <p className="text-xs text-amber-600">
+                    No hay usuarios con rol médico de sala registrados. Contacte al administrador.
+                  </p>
+                )}
+              </>
             )}
           </div>
 

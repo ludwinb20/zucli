@@ -139,6 +139,17 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
           return;
         }
 
+        // Verificar permisos - recepcion no debe tener acceso
+        if (user?.role?.name === 'recepcion') {
+          toast({
+            title: "Error",
+            description: "No tienes permisos para acceder a esta vista",
+            variant: "error",
+          });
+          router.push('/dashboard');
+          return;
+        }
+
         // Verificar permisos para especialistas
         if (user?.role?.name === 'especialista' && 
             user.specialty?.id !== appointmentData.specialtyId) {

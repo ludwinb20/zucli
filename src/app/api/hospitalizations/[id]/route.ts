@@ -31,10 +31,11 @@ export async function GET(
             gender: true,
           },
         },
-        salaDoctor: {
+        medicoSalaUser: {
           select: {
             id: true,
             name: true,
+            username: true,
           },
         },
         room: true,
@@ -126,7 +127,27 @@ export async function GET(
             }
           }
         },
-        payments: true,
+        payments: {
+          where: {
+            isActive: true,
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+          select: {
+            id: true,
+            total: true,
+            status: true,
+            paymentMethod: true,
+            isActive: true,
+            daysCoveredStartDate: true,
+            daysCoveredEndDate: true,
+            daysCount: true,
+            createdAt: true,
+            updatedAt: true,
+            notes: true,
+          },
+        },
       },
     });
 
@@ -145,9 +166,39 @@ export async function GET(
       hospitalization.dischargeDate
     );
 
+    // Calcular días pendientes
+    const { calculatePendingDays } = await import('@/lib/hospitalization-helpers');
+    const referenceDate = hospitalization.dischargeDate || new Date();
+    const pending = calculatePendingDays(
+      hospitalization.admissionDate,
+      hospitalization.payments,
+      referenceDate
+    );
+
+    // Calcular información de pagos
+    const totalPaid = hospitalization.payments
+      .filter(p => p.status === 'pagado' && p.isActive)
+      .reduce((sum, p) => sum + Number(p.total || 0), 0);
+
+    const pendingPayments = hospitalization.payments.filter(p => p.status === 'pendiente' && p.isActive);
+    const totalPending = pendingPayments.reduce((sum, p) => sum + Number(p.total || 0), 0);
+
     return NextResponse.json({
       ...hospitalization,
       costCalculation,
+      pendingDays: {
+        daysCount: pending.daysCount,
+        startDate: pending.startDate.toISOString(),
+        endDate: pending.endDate.toISOString(),
+        hasPendingDays: pending.hasPendingDays,
+        estimatedCost: pending.daysCount * dailyRateValue,
+      },
+      paymentSummary: {
+        totalPaid,
+        totalPending,
+        totalPayments: hospitalization.payments.length,
+        pendingPaymentsCount: pendingPayments.length,
+      },
     });
   } catch (error) {
     console.error('Error al obtener hospitalización:', error);
@@ -203,12 +254,31 @@ export async function PATCH(
 
       const finalDischargeDate = dischargeDate ? new Date(dischargeDate) : new Date();
 
+      // Obtener pagos existentes para calcular días pendientes
+      const existingPayments = await prisma.payment.findMany({
+        where: {
+          hospitalizationId: id,
+          isActive: true,
+          status: { not: 'cancelado' },
+        },
+        select: {
+          daysCoveredStartDate: true,
+          daysCoveredEndDate: true,
+          status: true,
+          isActive: true,
+        },
+      });
+
       // Obtener la tarifa diaria correcta (variante o base)
       const dailyRate = getDailyRate(existingHosp.dailyRateItem, existingHosp.dailyRateVariant);
 
-      // Calcular costo total
-      const daysOfStay = calculateDaysOfStay(existingHosp.admissionDate, finalDischargeDate);
-      const totalCost = daysOfStay * dailyRate;
+      // Calcular días pendientes usando helper
+      const { calculatePendingDays } = await import('@/lib/hospitalization-helpers');
+      const pending = calculatePendingDays(
+        existingHosp.admissionDate,
+        existingPayments,
+        finalDischargeDate
+      );
 
       // Actualizar hospitalización
       const updatedHosp = await prisma.hospitalization.update({
@@ -220,23 +290,30 @@ export async function PATCH(
         },
         include: {
           patient: true,
-          salaDoctor: true,
+          medicoSalaUser: true,
           room: true,
           dailyRateItem: true,
           preclinicas: true,
         },
       });
 
-      // Actualizar el pago con el monto total
-      await prisma.payment.updateMany({
-        where: {
-          hospitalizationId: id,
-        },
-        data: {
-          total: totalCost,
-          status: 'pendiente', // Queda pendiente para que caja lo procese
-        },
-      });
+      // Si hay días pendientes, crear un pago final para esos días
+      if (pending.hasPendingDays && pending.daysCount > 0) {
+        const totalCost = pending.daysCount * dailyRate;
+
+        await prisma.payment.create({
+          data: {
+            patientId: existingHosp.patientId,
+            hospitalizationId: id,
+            total: totalCost,
+            status: 'pendiente',
+            daysCoveredStartDate: pending.startDate,
+            daysCoveredEndDate: pending.endDate,
+            daysCount: pending.daysCount,
+            notes: `Pago final al dar de alta: ${pending.daysCount} día(s) desde ${pending.startDate.toLocaleDateString('es-ES')} hasta ${pending.endDate.toLocaleDateString('es-ES')}`,
+          },
+        });
+      }
 
       // Liberar habitación si tenía una asignada
       if (existingHosp.roomId) {
@@ -354,10 +431,11 @@ export async function PATCH(
             gender: true,
           },
         },
-        salaDoctor: {
+        medicoSalaUser: {
           select: {
             id: true,
             name: true,
+            username: true,
           },
         },
         room: true,
