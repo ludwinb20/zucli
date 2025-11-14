@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-const allowedRoles = ['admin', 'recepcion'];
+const allowedRoles = ['admin', 'recepcion', 'medico_sala'];
 
 function hasPermission(session: Awaited<ReturnType<typeof getServerSession<typeof authOptions>> | null>) {
   const roleName = session?.user?.role?.name;

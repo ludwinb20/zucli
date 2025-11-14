@@ -19,13 +19,13 @@ export const navigationItems: NavigationItem[] = [
     name: "Dashboard",
     href: "/dashboard",
     icon: <Home size={20} />,
-    roles: ["especialista", "recepcion", "caja", "radiologo", "admin"],
+    roles: ["especialista", "recepcion", "caja", "radiologo", "medico_sala", "admin"],
   },
   {
     name: "Pacientes",
     href: "/patients",
     icon: <Users size={20} />,
-    roles: ["especialista", "recepcion", "caja", "radiologo", "admin"],
+    roles: ["especialista", "recepcion", "caja", "radiologo", "medico_sala", "admin"],
   },
   {
     name: "Citas",
@@ -49,13 +49,13 @@ export const navigationItems: NavigationItem[] = [
     name: "Hospitalizaciones",
     href: "/hospitalizaciones",
     icon: <Bed size={20} />,
-    roles: ["especialista", "recepcion", "admin"],
+    roles: ["especialista", "recepcion", "medico_sala", "admin"],
   },
   {
     name: "Cirugías",
     href: "/surgeries",
     icon: <Scissors size={20} />,
-    roles: ["especialista", "recepcion", "admin"],
+    roles: ["especialista", "recepcion", "medico_sala", "admin"],
   },
   {
     name: "Pagos",

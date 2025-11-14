@@ -38,7 +38,9 @@ export function AppNavbar() {
       admin: 'Administrador',
       especialista: 'Especialista',
       recepcion: 'Recepción',
-      caja: 'Caja'
+      caja: 'Caja',
+      medico_sala: 'Médico de Sala',
+      radiologo: 'Radiólogo'
     };
     return roleNames[role] || role;
   };

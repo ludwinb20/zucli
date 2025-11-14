@@ -215,6 +215,8 @@ export function UserModal({ isOpen, onClose, user, onSuccess }: UserModalProps) 
       especialista: "Especialista",
       recepcion: "Recepción",
       caja: "Caja",
+      medico_sala: "Médico de Sala",
+      radiologo: "Radiólogo",
     };
     return roleNames[roleName] || roleName;
   };

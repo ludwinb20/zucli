@@ -16,7 +16,7 @@ export async function POST(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    if (!["admin", "especialista", "recepcion"].includes(session.user.role?.name || "")) {
+    if (!["admin", "especialista", "recepcion", "medico_sala"].includes(session.user.role?.name || "")) {
       return NextResponse.json({ error: 'No tienes permisos para realizar esta acción' }, { status: 403 });
     }
 
@@ -168,7 +168,7 @@ export async function PUT(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    if (!["admin", "especialista", "recepcion"].includes(session.user.role?.name || "")) {
+    if (!["admin", "especialista", "recepcion", "medico_sala"].includes(session.user.role?.name || "")) {
       return NextResponse.json({ error: 'No tienes permisos para realizar esta acción' }, { status: 403 });
     }
 

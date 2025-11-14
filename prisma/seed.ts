@@ -37,6 +37,11 @@ async function main() {
       update: {},
       create: { name: 'radiologo' },
     }),
+    prisma.role.upsert({
+      where: { name: 'medico_sala' },
+      update: {},
+      create: { name: 'medico_sala' },
+    }),
   ]);
 
   console.log(`✅ ${roles.length} roles creados`);

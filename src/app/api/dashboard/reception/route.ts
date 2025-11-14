@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user || session.user.role?.name !== 'recepcion') {
+    if (!session?.user || !['recepcion', 'medico_sala'].includes(session.user.role?.name || '')) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 

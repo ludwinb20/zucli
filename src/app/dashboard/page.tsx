@@ -23,6 +23,7 @@ export default function DashboardPage() {
     case 'caja':
       return <CashierDashboard />;
     case 'recepcion':
+    case 'medico_sala':
       return <ReceptionDashboard />;
     case 'radiologo':
       return <RadiologistDashboard />;

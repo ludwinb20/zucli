@@ -17,7 +17,7 @@ export async function POST(
     }
 
     // Verificar que el usuario tenga permisos
-    if (!["admin", "recepcion", "especialista"].includes(session.user.role?.name || "")) {
+    if (!["admin", "recepcion", "especialista", "medico_sala"].includes(session.user.role?.name || "")) {
       return NextResponse.json({ error: 'No tienes permisos para realizar esta acción' }, { status: 403 });
     }
 

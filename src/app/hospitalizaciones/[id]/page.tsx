@@ -55,7 +55,7 @@ export default function HospitalizacionDetallesPage() {
   }, [params.id]);
 
   useEffect(() => {
-    if (user && !["admin", "recepcion", "especialista"].includes(user.role?.name || "")) {
+    if (user && !["admin", "recepcion", "especialista", "medico_sala"].includes(user.role?.name || "")) {
       router.push("/dashboard");
     }
   }, [user, router]);

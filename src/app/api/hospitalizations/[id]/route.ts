@@ -92,6 +92,7 @@ export async function GET(
               include: {
                 serviceItem: true,
                 variant: true,
+                medicationName: true,
               },
             },
           },

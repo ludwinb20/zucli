@@ -70,7 +70,7 @@ export async function PUT(
     }
 
     // Verificar que el usuario tenga permisos para actualizar exámenes físicos
-    if (!["admin", "recepcion", "especialista"].includes(session.user.role?.name || "")) {
+    if (!["admin", "recepcion", "especialista", "medico_sala"].includes(session.user.role?.name || "")) {
       return NextResponse.json({ error: 'No tienes permisos para realizar esta acción' }, { status: 403 });
     }
 
@@ -162,7 +162,7 @@ export async function DELETE(
     }
 
     // Verificar que el usuario tenga permisos para eliminar exámenes físicos
-    if (!["admin", "recepcion", "especialista"].includes(session.user.role?.name || "")) {
+    if (!["admin", "recepcion", "especialista", "medico_sala"].includes(session.user.role?.name || "")) {
       return NextResponse.json({ error: 'No tienes permisos para realizar esta acción' }, { status: 403 });
     }
 
