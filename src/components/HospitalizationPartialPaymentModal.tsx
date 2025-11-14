@@ -851,37 +851,6 @@ export default function HospitalizationPartialPaymentModal({
               </Card>
             )}
 
-            {/* Resumen de pagos */}
-            {hospitalization.paymentSummary && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-semibold text-gray-900 mb-3">Resumen de Pagos</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-500">Total Pagado</p>
-                      <p className="font-medium text-green-600">
-                        {formatCurrency(hospitalization.paymentSummary.totalPaid)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Total Pendiente</p>
-                      <p className="font-medium text-yellow-600">
-                        {formatCurrency(hospitalization.paymentSummary.totalPending)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Pagos Totales</p>
-                      <p className="font-medium">{hospitalization.paymentSummary.totalPayments}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Pagos Pendientes</p>
-                      <p className="font-medium">{hospitalization.paymentSummary.pendingPaymentsCount}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Historial de pagos */}
             {hospitalization.payments && hospitalization.payments.length > 0 && (
               <Card>
