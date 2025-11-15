@@ -855,7 +855,7 @@ export default function PaymentDetailsModal({
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-900 flex items-center space-x-1">
                 <Building2 size={14} />
-                <span>RTN * (Formato: 0000-0000-00000)</span>
+                <span>RTN * (Formato: 0000-0000-000000)</span>
               </Label>
               <div className="flex items-center gap-2">
                 <Input
@@ -892,11 +892,11 @@ export default function PaymentDetailsModal({
                   id="rtn-part3"
                   value={rtnPart3}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
                     setRtnPart3(value);
                   }}
-                  placeholder="00000"
-                  maxLength={5}
+                  placeholder="000000"
+                  maxLength={6}
                   className="w-24 text-center border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]"
                 />
               </div>
