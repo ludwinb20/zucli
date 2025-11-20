@@ -28,6 +28,7 @@ import ExamenFisicoTab from "@/components/hospitalizaciones/ExamenFisicoTab";
 import MedicationTab from "@/components/hospitalizaciones/MedicationTab";
 import MedicalDocumentModal from "@/components/MedicalDocumentModal";
 import HospitalizationRateModal from "@/components/hospitalizaciones/HospitalizationRateModal";
+import PrintEpicrisisModal from "@/components/hospitalizaciones/PrintEpicrisisModal";
 
 export default function HospitalizacionDetallesPage() {
   const params = useParams();
@@ -47,6 +48,7 @@ export default function HospitalizacionDetallesPage() {
   const [isDischargeRecordModalOpen, setIsDischargeRecordModalOpen] = useState(false);
   const [isMedicalDocumentModalOpen, setIsMedicalDocumentModalOpen] = useState(false);
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
+  const [isPrintEpicrisisModalOpen, setIsPrintEpicrisisModalOpen] = useState(false);
 
   useEffect(() => {
     if (params.id) {
@@ -131,6 +133,7 @@ export default function HospitalizacionDetallesPage() {
           onDischarge={() => setIsDischargeRecordModalOpen(true)}
           onEmitDocument={() => setIsMedicalDocumentModalOpen(true)}
           onChangeDailyRate={isActive && hasDailyRateVariants ? () => setIsRateModalOpen(true) : undefined}
+          onPrintEpicrisis={hospitalization.dischargeRecord ? () => setIsPrintEpicrisisModalOpen(true) : undefined}
         />
 
         {/* Tabs */}
@@ -429,6 +432,16 @@ export default function HospitalizacionDetallesPage() {
           loadHospitalization();
         }}
       />
+
+      {/* Modal de impresión de Epicrisis */}
+      {hospitalization.dischargeRecord && (
+        <PrintEpicrisisModal
+          isOpen={isPrintEpicrisisModalOpen}
+          onClose={() => setIsPrintEpicrisisModalOpen(false)}
+          dischargeRecord={hospitalization.dischargeRecord}
+          hospitalization={hospitalization}
+        />
+      )}
     </div>
   );
 }

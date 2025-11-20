@@ -12,19 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { InlineSpinner } from "@/components/ui/spinner";
-import { SearchableSelect } from "@/components/common/SearchableSelect";
 import { PatientSearch } from "@/components/common/PatientSearch";
 import { PatientModal } from "@/components/PatientModal";
-import { TreatmentItemsSelector } from "@/components/TreatmentItemsSelector";
-import { TreatmentItem } from "@/types/components";
+import { Textarea } from "@/components/ui/textarea";
 import { Save, X, Activity } from "lucide-react";
-
-interface Patient {
-  id: string;
-  firstName: string;
-  lastName: string;
-  identityNumber: string;
-}
 
 interface SurgeryModalProps {
   isOpen: boolean;
@@ -40,12 +31,12 @@ export default function SurgeryModal({
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [items, setItems] = useState<TreatmentItem[]>([]);
-  const [surgeryTagId, setSurgeryTagId] = useState<string>("");
 
   const [formData, setFormData] = useState({
     patientId: "",
+    nombre: "", // Concepto de la cirugía
+    precioUnitario: "", // Precio unitario
+    quantity: "1", // Cantidad (por defecto 1)
   });
 
   useEffect(() => {
@@ -53,36 +44,16 @@ export default function SurgeryModal({
       loadData();
       setFormData({
         patientId: "",
+        nombre: "",
+        precioUnitario: "",
+        quantity: "1",
       });
-      setItems([]);
     }
   }, [isOpen]);
 
   const loadData = async () => {
-    try {
-      // Cargar pacientes
-      const patientsRes = await fetch("/api/patients?limit=1000");
-      if (patientsRes.ok) {
-        const patientsData = await patientsRes.json();
-        setPatients(patientsData.patients || []);
-      }
-
-      // Cargar tag de cirugía
-      const tagsRes = await fetch("/api/tags");
-      if (tagsRes.ok) {
-        const tagsData = await tagsRes.json();
-        console.log('tagsData', tagsData);
-        const surgeryTag = tagsData.tags?.find((t: { id: string; name: string }) => 
-          t.name.toLowerCase() === 'cirugias' || t.name.toLowerCase() === 'cirugías'
-        );
-        if (surgeryTag) {
-          console.log('surgeryTag', surgeryTag);
-          setSurgeryTagId(surgeryTag.id); // ← Usar ID, no name
-        }
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-    }
+    // No necesitamos cargar pacientes aquí ya que PatientSearch lo maneja
+    // Esta función se mantiene por compatibilidad pero está vacía
   };
 
   const handleSubmit = async () => {
@@ -96,10 +67,30 @@ export default function SurgeryModal({
       return;
     }
 
-    if (items.length === 0) {
+    if (!formData.nombre.trim()) {
       toast({
         title: "Error",
-        description: "Debe agregar al menos un procedimiento quirúrgico",
+        description: "El concepto de la cirugía es requerido",
+        variant: "error",
+      });
+      return;
+    }
+
+    const precioNum = parseFloat(formData.precioUnitario);
+    if (isNaN(precioNum) || precioNum <= 0) {
+      toast({
+        title: "Error",
+        description: "El precio debe ser mayor a 0",
+        variant: "error",
+      });
+      return;
+    }
+
+    const quantityNum = parseInt(formData.quantity) || 1;
+    if (quantityNum <= 0) {
+      toast({
+        title: "Error",
+        description: "La cantidad debe ser mayor a 0",
         variant: "error",
       });
       return;
@@ -108,15 +99,14 @@ export default function SurgeryModal({
     try {
       setSaving(true);
 
-      // Tomar el primer item (solo se permite uno)
-      const surgeryItem = items[0];
-
       const response = await fetch("/api/surgeries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: formData.patientId,
-          surgeryItemId: surgeryItem.priceId,
+          nombre: formData.nombre.trim(),
+          precioUnitario: precioNum,
+          quantity: quantityNum,
         }),
       });
 
@@ -202,27 +192,75 @@ export default function SurgeryModal({
             />
           </div>
 
-          {/* Procedimiento Quirúrgico */}
+          {/* Concepto de la Cirugía */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-gray-700">
-              Procedimiento Quirúrgico *
+            <Label htmlFor="nombre" className="text-sm font-medium text-gray-700">
+              Concepto de la Cirugía *
             </Label>
-            <TreatmentItemsSelector
-              items={items}
-              onChange={(newItems) => {
-                // Limitar a solo 1 item
-                if (newItems.length > 1) {
-                  setItems([newItems[newItems.length - 1]]);
-                } else {
-                  setItems(newItems);
-                }
-              }}
-              includeTags={surgeryTagId ? [surgeryTagId] : undefined}
+            <Textarea
+              id="nombre"
+              value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              placeholder="Ej: Osteomía de Cherron, Apendicectomía, etc."
+              rows={3}
+              className="resize-none border-gray-300 focus:ring-2 focus:ring-[#2E9589] focus:border-transparent"
             />
             <p className="text-xs text-gray-500">
-              Solo se puede seleccionar un procedimiento quirúrgico
+              Describe el procedimiento quirúrgico que se realizará
             </p>
           </div>
+
+          {/* Precio y Cantidad */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="precioUnitario" className="text-sm font-medium text-gray-700">
+                Precio Unitario (ISV incluido) *
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  L
+                </span>
+                <Input
+                  id="precioUnitario"
+                  type="number"
+                  value={formData.precioUnitario}
+                  onChange={(e) => setFormData({ ...formData, precioUnitario: e.target.value })}
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  className="pl-8 border-gray-300 focus:ring-2 focus:ring-[#2E9589] focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="quantity" className="text-sm font-medium text-gray-700">
+                Cantidad *
+              </Label>
+              <Input
+                id="quantity"
+                type="number"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                placeholder="1"
+                min="1"
+                step="1"
+                className="border-gray-300 focus:ring-2 focus:ring-[#2E9589] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Resumen */}
+          {formData.precioUnitario && formData.quantity && (
+            <div className="p-3 bg-[#2E9589]/10 rounded-lg border border-[#2E9589]/20">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Total:</span>
+                <span className="text-lg font-bold text-[#2E9589]">
+                  L {(parseFloat(formData.precioUnitario || "0") * parseInt(formData.quantity || "1")).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

@@ -29,10 +29,11 @@ interface Surgery {
   id: string;
   createdAt: string | Date;
   status: string;
-  surgeryItem: {
+  surgeryItem?: {
     id: string;
     name: string;
-  };
+  } | null;
+  transactionItemName?: string | null;
 }
 
 interface MedicoSalaUser {
@@ -386,11 +387,14 @@ export default function HospitalizationModal({
               disabled={!formData.patientId}
             >
               <option value="">Sin cirugía relacionada</option>
-              {surgeries.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.surgeryItem.name} - {new Date(s.createdAt).toLocaleDateString("es-HN")}
-                </option>
-              ))}
+              {surgeries.map((s) => {
+                const surgeryName = s.transactionItemName || s.surgeryItem?.name || 'Cirugía sin nombre';
+                return (
+                  <option key={s.id} value={s.id}>
+                    {surgeryName} - {new Date(s.createdAt).toLocaleDateString("es-HN")}
+                  </option>
+                );
+              })}
             </select>
             {surgeries.length === 0 && formData.patientId && (
               <p className="text-xs text-gray-500">No hay cirugías iniciadas para este paciente</p>

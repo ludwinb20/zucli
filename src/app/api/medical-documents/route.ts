@@ -78,9 +78,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    // Verificar que el usuario sea doctor/especialista
+    // Verificar que el usuario sea doctor/especialista/medico_sala
     const userRole = session.user.role?.name;
-    const isDoctor = userRole === 'especialista' || userRole === 'admin';
+    const isDoctor = userRole === 'especialista' || userRole === 'admin' || userRole === 'medico_sala';
     
     if (!isDoctor) {
       return NextResponse.json(

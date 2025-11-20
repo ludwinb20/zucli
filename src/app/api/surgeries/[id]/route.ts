@@ -93,7 +93,21 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(surgery);
+    // Obtener TransactionItem para mostrar el nombre cuando surgeryItem es null
+    const transactionItem = await prisma.transactionItem.findFirst({
+      where: {
+        sourceType: 'surgery',
+        sourceId: surgery.id
+      },
+      select: {
+        nombre: true
+      }
+    });
+
+    return NextResponse.json({
+      ...surgery,
+      transactionItemName: transactionItem?.nombre || null
+    });
 
   } catch (error) {
     console.error('Error al obtener cirugía:', error);

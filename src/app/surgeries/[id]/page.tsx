@@ -28,6 +28,11 @@ import {
   FilePlus,
 } from "lucide-react";
 import { SurgeryWithRelations, SurgeryStatus } from "@/types/surgery";
+
+// Tipo auxiliar para cirugías con transactionItemName
+type SurgeryWithItemName = SurgeryWithRelations & {
+  transactionItemName?: string | null;
+};
 import OperativeNoteModal from "@/components/OperativeNoteModal";
 import SurgeryMedicalOrdersModal from "@/components/SurgeryMedicalOrdersModal";
 import MaterialControlModal from "@/components/MaterialControlModal";
@@ -46,7 +51,7 @@ export default function SurgeryDetailsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [surgery, setSurgery] = useState<SurgeryWithRelations | null>(null);
+  const [surgery, setSurgery] = useState<SurgeryWithItemName | null>(null);
   const [loading, setLoading] = useState(true);
   
   // Estados de modales
@@ -167,7 +172,7 @@ export default function SurgeryDetailsPage() {
                 <p className="text-white/80 mt-1">
                   {surgery.patient?.identityNumber}
                 </p>
-                <p className="mt-2 font-medium">{surgery.surgeryItem?.name}</p>
+                <p className="mt-2 font-medium">{surgery.transactionItemName || surgery.surgeryItem?.name || 'Cirugía sin nombre'}</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -223,10 +228,9 @@ export default function SurgeryDetailsPage() {
 
         {/* Tabs */}
         <CardContent className="pt-6">
-          <Tabs defaultValue="nota-operatoria" className="w-full">
-            <TabsList className="grid w-full grid-cols-7 mb-6">
-              <TabsTrigger value="nota-operatoria">Nota Operatoria</TabsTrigger>
-              <TabsTrigger value="ordenes">Órdenes</TabsTrigger>
+          <Tabs defaultValue="nota-ordenes" className="w-full">
+            <TabsList className="grid w-full grid-cols-6 mb-6">
+              <TabsTrigger value="nota-ordenes">Nota y Órdenes</TabsTrigger>
               <TabsTrigger value="anestesia">Anestesia</TabsTrigger>
               <TabsTrigger value="materiales">Control Materiales</TabsTrigger>
               <TabsTrigger value="quirofano">Quirófano</TabsTrigger>
@@ -234,111 +238,112 @@ export default function SurgeryDetailsPage() {
               <TabsTrigger value="utilizados">Materiales Usados</TabsTrigger>
             </TabsList>
 
-            {/* TAB: Nota Operatoria */}
-            <TabsContent value="nota-operatoria">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-900">Nota Operatoria</h3>
-                  <Button
-                    onClick={() => setIsOperativeNoteModalOpen(true)}
-                    className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {surgery.operativeNote ? "Editar Nota" : "Registrar Nota"}
-                  </Button>
-                </div>
-                
-                {surgery.operativeNote ? (
-                  <Card className="bg-white border-gray-200">
-                    <CardContent className="pt-6">
-                      <div className="space-y-4">
-                        <div>
-                          <Label className="text-sm font-medium text-gray-700">Diagnóstico Preoperatorio</Label>
-                          <p className="text-sm text-gray-600 mt-1">{surgery.operativeNote.diagnosticoPreoperatorio}</p>
-                        </div>
-                        {surgery.operativeNote.hallazgos && (
+            {/* TAB: Nota Operatoria y Órdenes */}
+            <TabsContent value="nota-ordenes">
+              <div className="space-y-6">
+                {/* Nota Operatoria */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-gray-900">Nota Operatoria</h3>
+                    <Button
+                      onClick={() => setIsOperativeNoteModalOpen(true)}
+                      className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {surgery.operativeNote ? "Editar Nota" : "Registrar Nota"}
+                    </Button>
+                  </div>
+                  
+                  {surgery.operativeNote ? (
+                    <Card className="bg-white border-gray-200">
+                      <CardContent className="pt-6">
+                        <div className="space-y-4">
                           <div>
-                            <Label className="text-sm font-medium text-gray-700">Hallazgos</Label>
-                            <p className="text-sm text-gray-600 mt-1">{surgery.operativeNote.hallazgos}</p>
+                            <Label className="text-sm font-medium text-gray-700">Diagnóstico Preoperatorio</Label>
+                            <p className="text-sm text-gray-600 mt-1">{surgery.operativeNote.diagnosticoPreoperatorio}</p>
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No hay nota operatoria registrada</p>
-                    <p className="text-sm text-gray-400 mt-1">Haz clic en &quot;Registrar Nota&quot; para comenzar</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* TAB: Órdenes y Anotaciones */}
-            <TabsContent value="ordenes">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-gray-900">Órdenes y Anotaciones Médicas</h3>
-                  <Button
-                    onClick={() => setIsMedicalOrdersModalOpen(true)}
-                    className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {surgery.medicalOrders ? "Editar" : "Registrar"}
-                  </Button>
+                          {surgery.operativeNote.hallazgos && (
+                            <div>
+                              <Label className="text-sm font-medium text-gray-700">Hallazgos</Label>
+                              <p className="text-sm text-gray-600 mt-1">{surgery.operativeNote.hallazgos}</p>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No hay nota operatoria registrada</p>
+                      <p className="text-sm text-gray-400 mt-1">Haz clic en &quot;Registrar Nota&quot; para comenzar</p>
+                    </div>
+                  )}
                 </div>
-                
-                {surgery.medicalOrders ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Anotaciones */}
-                    <Card className="bg-white border-gray-200">
-                      <CardContent className="pt-6">
-                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <ClipboardList className="h-5 w-5 text-[#2E9589]" />
-                          Anotaciones
-                        </h4>
-                        {surgery.medicalOrders.anotaciones && surgery.medicalOrders.anotaciones.length > 0 ? (
-                          <ul className="space-y-2">
-                            {surgery.medicalOrders.anotaciones.map((anotacion, idx) => (
-                              <li key={idx} className="text-sm text-gray-600 pl-4 border-l-2 border-[#2E9589]">
-                                {anotacion.content}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-gray-400 italic">Sin anotaciones</p>
-                        )}
-                      </CardContent>
-                    </Card>
 
-                    {/* Órdenes */}
-                    <Card className="bg-white border-gray-200">
-                      <CardContent className="pt-6">
-                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <FileText className="h-5 w-5 text-blue-600" />
-                          Órdenes
-                        </h4>
-                        {surgery.medicalOrders.ordenes && surgery.medicalOrders.ordenes.length > 0 ? (
-                          <ul className="space-y-2">
-                            {surgery.medicalOrders.ordenes.map((orden, idx) => (
-                              <li key={idx} className="text-sm text-gray-600 pl-4 border-l-2 border-blue-600">
-                                {orden.content}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-sm text-gray-400 italic">Sin órdenes</p>
-                        )}
-                      </CardContent>
-                    </Card>
+                {/* Órdenes y Anotaciones */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-gray-900">Órdenes y Anotaciones Médicas</h3>
+                    <Button
+                      onClick={() => setIsMedicalOrdersModalOpen(true)}
+                      className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {surgery.medicalOrders ? "Editar" : "Registrar"}
+                    </Button>
                   </div>
-                ) : (
-                  <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                    <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No hay órdenes registradas</p>
-                  </div>
-                )}
+                  
+                  {surgery.medicalOrders ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Anotaciones */}
+                      <Card className="bg-white border-gray-200">
+                        <CardContent className="pt-6">
+                          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <ClipboardList className="h-5 w-5 text-[#2E9589]" />
+                            Anotaciones
+                          </h4>
+                          {surgery.medicalOrders.anotaciones && surgery.medicalOrders.anotaciones.length > 0 ? (
+                            <ul className="space-y-2">
+                              {surgery.medicalOrders.anotaciones.map((anotacion, idx) => (
+                                <li key={idx} className="text-sm text-gray-600 pl-4 border-l-2 border-[#2E9589]">
+                                  {anotacion.content}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">Sin anotaciones</p>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Órdenes */}
+                      <Card className="bg-white border-gray-200">
+                        <CardContent className="pt-6">
+                          <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-blue-600" />
+                            Órdenes
+                          </h4>
+                          {surgery.medicalOrders.ordenes && surgery.medicalOrders.ordenes.length > 0 ? (
+                            <ul className="space-y-2">
+                              {surgery.medicalOrders.ordenes.map((orden, idx) => (
+                                <li key={idx} className="text-sm text-gray-600 pl-4 border-l-2 border-blue-600">
+                                  {orden.content}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-gray-400 italic">Sin órdenes</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No hay órdenes registradas</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </TabsContent>
 

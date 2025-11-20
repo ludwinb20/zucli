@@ -15,56 +15,55 @@ model Role {
   id        String   @id @default(cuid())
   name      String   @unique
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt         
-  
+  updatedAt DateTime @updatedAt
+
   users User[]
-  
+
   @@map("roles")
 }
 
 // Modelo de Usuario
 model User {
-  id            String    @id @default(cuid())
-  username      String    @unique  // Para login con usuario
-  password      String    // Hash de la contraseña
-  name          String
-  roleId        String
-  specialtyId   String?   // Especialidad asignada (opcional, solo para especialistas)
-  isActive      Boolean   @default(true)
-  image         String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt         
-  role          Role           @relation(fields: [roleId], references: [id])
-  specialty     Specialty?     @relation(fields: [specialtyId], references: [id])
-  
+  id          String     @id @default(cuid())
+  username    String     @unique // Para login con usuario
+  password    String // Hash de la contraseña
+  name        String
+  roleId      String
+  specialtyId String? // Especialidad asignada (opcional, solo para especialistas)
+  isActive    Boolean    @default(true)
+  image       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  role        Role       @relation(fields: [roleId], references: [id])
+  specialty   Specialty? @relation(fields: [specialtyId], references: [id])
+
   // Relaciones con módulos
-  consultations      Consultation[]     @relation("consultations_as_doctor")
-  sales              Sale[]             @relation("sales_as_cashier")
-  medicalDocuments   MedicalDocument[]  // Documentos médicos emitidos por el usuario
+  consultations                Consultation[]    @relation("consultations_as_doctor")
+  sales                        Sale[]            @relation("sales_as_cashier")
+  medicalDocuments             MedicalDocument[] // Documentos médicos emitidos por el usuario
   hospitalizationsAsMedicoSala Hospitalization[] @relation("hospitalizations_as_medico_sala") // Hospitalizaciones donde es médico de sala
-  
+
   @@map("users")
 }
 
-
 // Modelo de Paciente
 model Patient {
-  id              String   @id @default(cuid())
-  firstName       String
-  lastName        String
-  birthDate       DateTime // Fecha de nacimiento
-  gender          String
-  identityNumber  String   @unique
-  phone           String?
-  address         String?
-  emergencyContactName      String?
-  emergencyContactNumber    String?
-  emergencyContactRelation  String?
-  medicalHistory  String?
-  allergies       String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  id                       String   @id @default(cuid())
+  firstName                String
+  lastName                 String
+  birthDate                DateTime // Fecha de nacimiento
+  gender                   String
+  identityNumber           String   @unique
+  phone                    String?
+  address                  String?
+  emergencyContactName     String?
+  emergencyContactNumber   String?
+  emergencyContactRelation String?
+  medicalHistory           String?
+  allergies                String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
   consultations    Consultation[]
   appointments     Appointment[]
   payments         Payment[]
@@ -73,20 +72,20 @@ model Patient {
   surgeries        Surgery[] // Cirugías del paciente
   radiologyOrders  RadiologyOrder[] // Órdenes de radiología del paciente
   medicalDocuments MedicalDocument[] // Documentos médicos del paciente
-  
+
   @@map("patients")
 }
 
 // Modelo de Servicio Médico (Legacy - puede eliminarse si no se usa)
 model Service {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  basePrice   Float
-  category    String   // "consulta", "rayos_x", etc.
-  isActive    Boolean  @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt        
+  id            String         @id @default(cuid())
+  name          String
+  description   String?
+  basePrice     Float
+  category      String // "consulta", "rayos_x", etc.
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   servicePrices ServicePrice[]
 
   @@map("services")
@@ -96,14 +95,14 @@ model Service {
 model ServicePrice {
   id        String   @id @default(cuid())
   serviceId String
-  startTime String   // Formato HH:MM
-  endTime   String   // Formato HH:MM
+  startTime String // Formato HH:MM
+  endTime   String // Formato HH:MM
   price     Float
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt         
-  
+  updatedAt DateTime @updatedAt
+
   service Service @relation(fields: [serviceId], references: [id])
-  
+
   @@map("service_prices")
 }
 
@@ -113,85 +112,85 @@ model ServicePrice {
 
 // Tabla Universal de Items de Transacción
 model TransactionItem {
-  id            String   @id @default(cuid())
-  sourceType    String   // "consultation", "sale", "hospitalization", "surgery"
-  sourceId      String   // ID de la fuente (consultationId, saleId, etc.)
-  
-  serviceItemId String?  // Nullable para permitir items variables personalizados
+  id         String @id @default(cuid())
+  sourceType String // "consultation", "sale", "hospitalization", "surgery"
+  sourceId   String // ID de la fuente (consultationId, saleId, etc.)
+
+  serviceItemId String? // Nullable para permitir items variables personalizados
   variantId     String?
-  quantity      Int      @default(1)
-  isCustom      Boolean  @default(false) // true si es un item variable creado por el usuario
-  
+  quantity      Int     @default(1)
+  isCustom      Boolean @default(false) // true si es un item variable creado por el usuario
+
   // Snapshot de datos en el momento de la transacción
-  nombre         String   // Nombre del medicamento/servicio
-  precioUnitario Float    // Precio unitario aplicado
-  descuento      Float    @default(0)
-  total          Float    // (precioUnitario * quantity) - descuento
-  
+  nombre         String // Nombre del medicamento/servicio
+  precioUnitario Float // Precio unitario aplicado
+  descuento      Float  @default(0)
+  total          Float // (precioUnitario * quantity) - descuento
+
   // Metadata
-  addedBy       String?  // userId quien agregó el item
-  notes         String?  @db.Text // Notas específicas del item
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  addedBy String? // userId quien agregó el item
+  notes   String? @db.Text // Notas específicas del item
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relaciones
   serviceItem ServiceItem?        @relation(fields: [serviceItemId], references: [id])
   variant     ServiceItemVariant? @relation(fields: [variantId], references: [id])
-  
+
   @@index([sourceType, sourceId])
   @@map("transaction_items")
 }
 
 // Modelo de Consulta Externa
 model Consultation {
-  id                String   @id @default(cuid())
-  patientId         String
-  doctorId          String   // ID del usuario (especialista) que realiza la consulta
-  diagnosis         String?
-  currentIllness    String?
-  vitalSigns        String?  // JSON string con signos vitales
-  treatment         String?  // Notas del tratamiento
-  observations      String?
-  consultationDate  DateTime @default(now())
-  status            String   @default("pending") // pending, completed, cancelled
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt        
-  
-  patient  Patient  @relation(fields: [patientId], references: [id])
-  doctor   User     @relation("consultations_as_doctor", fields: [doctorId], references: [id])
+  id               String   @id @default(cuid())
+  patientId        String
+  doctorId         String // ID del usuario (especialista) que realiza la consulta
+  diagnosis        String?
+  currentIllness   String?
+  vitalSigns       String? // JSON string con signos vitales
+  treatment        String? // Notas del tratamiento
+  observations     String?
+  consultationDate DateTime @default(now())
+  status           String   @default("pending") // pending, completed, cancelled
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  patient  Patient   @relation(fields: [patientId], references: [id])
+  doctor   User      @relation("consultations_as_doctor", fields: [doctorId], references: [id])
   payments Payment[] // Pagos generados de esta consulta
-  
+
   @@map("consultations")
 }
 
 // Modelo de Venta Directa (Farmacia/Caja)
 model Sale {
-  id         String   @id @default(cuid())
-  patientId  String?  // Opcional, puede ser venta anónima
-  cashierId  String   // Usuario de caja que registró
-  type       String   @default("pharmacy") // "pharmacy", "supplies", etc.
-  notes      String?  @db.Text
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  patient  Patient? @relation(fields: [patientId], references: [id])
-  cashier  User     @relation("sales_as_cashier", fields: [cashierId], references: [id])
+  id        String   @id @default(cuid())
+  patientId String? // Opcional, puede ser venta anónima
+  cashierId String // Usuario de caja que registró
+  type      String   @default("pharmacy") // "pharmacy", "supplies", etc.
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient  Patient?  @relation(fields: [patientId], references: [id])
+  cashier  User      @relation("sales_as_cashier", fields: [cashierId], references: [id])
   payments Payment[] // Pagos de esta venta
-  
+
   @@map("sales")
 }
 
 // Modelo de Habitaciones
 model Room {
-  id              String   @id @default(cuid())
-  number          String   @unique // Número o nombre de habitación
-  status          String   @default("available") // available, occupied
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  id        String   @id @default(cuid())
+  number    String   @unique // Número o nombre de habitación
+  status    String   @default("available") // available, occupied
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   hospitalizations Hospitalization[]
-  
+
   @@map("rooms")
 }
 
@@ -209,37 +208,37 @@ model MedicationName {
 
 // Modelo de Hospitalización
 model Hospitalization {
-  id                   String   @id @default(cuid())
-  patientId            String
-  medicoSalaUserId     String?  // Usuario médico de sala responsable (nullable para no romper datos existentes)
-  roomId               String?  // Relación con habitación
-  surgeryId            String?  // Opcional: relación con cirugía
-  dailyRateItemId      String?  // Item de cobro diario (ServiceItem)
-  dailyRateVariantId   String?  // Variante del item de cobro diario (opcional)
-  admissionDate        DateTime @default(now())
-  dischargeDate        DateTime?
-  diagnosis            String?  @db.Text
-  status               String   @default("iniciada") // iniciada, completada
-  notes                String?  @db.Text
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  
-  patient          Patient              @relation(fields: [patientId], references: [id])
-  medicoSalaUser   User?                @relation("hospitalizations_as_medico_sala", fields: [medicoSalaUserId], references: [id])
-  room             Room?                @relation(fields: [roomId], references: [id])
-  surgery          Surgery?             @relation(fields: [surgeryId], references: [id])
-  dailyRateItem    ServiceItem?         @relation(fields: [dailyRateItemId], references: [id])
-  dailyRateVariant ServiceItemVariant?  @relation(fields: [dailyRateVariantId], references: [id])
-  payments         Payment[]            // Pagos de hospitalización
-  preclinicas      Preclinica[]         // Relación con preclínicas múltiples
-  insulinControls  InsulinControl[]     // Controles de insulina
+  id                 String    @id @default(cuid())
+  patientId          String
+  medicoSalaUserId   String? // Usuario médico de sala responsable (nullable para no romper datos existentes)
+  roomId             String? // Relación con habitación
+  surgeryId          String? // Opcional: relación con cirugía
+  dailyRateItemId    String? // Item de cobro diario (ServiceItem)
+  dailyRateVariantId String? // Variante del item de cobro diario (opcional)
+  admissionDate      DateTime  @default(now())
+  dischargeDate      DateTime?
+  diagnosis          String?   @db.Text
+  status             String    @default("iniciada") // iniciada, completada
+  notes              String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  patient              Patient               @relation(fields: [patientId], references: [id])
+  medicoSalaUser       User?                 @relation("hospitalizations_as_medico_sala", fields: [medicoSalaUserId], references: [id])
+  room                 Room?                 @relation(fields: [roomId], references: [id])
+  surgery              Surgery?              @relation(fields: [surgeryId], references: [id])
+  dailyRateItem        ServiceItem?          @relation(fields: [dailyRateItemId], references: [id])
+  dailyRateVariant     ServiceItemVariant?   @relation(fields: [dailyRateVariantId], references: [id])
+  payments             Payment[] // Pagos de hospitalización
+  preclinicas          Preclinica[] // Relación con preclínicas múltiples
+  insulinControls      InsulinControl[] // Controles de insulina
   intakeOutputControls IntakeOutputControl[] // Controles de ingestas y excretas
-  examenFisicos    ExamenFisico[]       // Exámenes físicos
-  medicationControls MedicationControl[] // Control de medicamentos y servicios
-  nursingNotes     NursingNote[]        // Notas de enfermería
-  admissionRecord  AdmissionRecord?     // Registro de ingreso (único)
-  dischargeRecord  DischargeRecord?     // Registro de alta (único)
-  
+  examenFisicos        ExamenFisico[] // Exámenes físicos
+  medicationControls   MedicationControl[] // Control de medicamentos y servicios
+  nursingNotes         NursingNote[] // Notas de enfermería
+  admissionRecord      AdmissionRecord? // Registro de ingreso (único)
+  dischargeRecord      DischargeRecord? // Registro de alta (único)
+
   @@map("hospitalizations")
 }
 
@@ -252,11 +251,11 @@ model Specialty {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  appointments          Appointment[]
-  users                 User[]                         // Usuarios especialistas asignados a esta especialidad
-  serviceItemSpecialties ServiceItemToSpecialty[]      // Items de servicio asociados a esta especialidad
-  consultaEspecialidad  ConsultaEspecialidad?          // Item de servicio automático para consultas
-  specialtyDays         SpecialtyDay[]                 // Días en que atiende esta especialidad
+  appointments           Appointment[]
+  users                  User[] // Usuarios especialistas asignados a esta especialidad
+  serviceItemSpecialties ServiceItemToSpecialty[] // Items de servicio asociados a esta especialidad
+  consultaEspecialidad   ConsultaEspecialidad? // Item de servicio automático para consultas
+  specialtyDays          SpecialtyDay[] // Días en que atiende esta especialidad
 
   @@map("specialties")
 }
@@ -265,7 +264,7 @@ model Specialty {
 model SpecialtyDay {
   id          String   @id @default(cuid())
   specialtyId String
-  dayOfWeek   Int      // 0 = Domingo, 1 = Lunes, 2 = Martes, ..., 6 = Sábado
+  dayOfWeek   Int // 0 = Domingo, 1 = Lunes, 2 = Martes, ..., 6 = Sábado
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -278,9 +277,9 @@ model SpecialtyDay {
 // Modelo de Consulta por Especialidad (Item de servicio automático al iniciar consulta)
 model ConsultaEspecialidad {
   id            String   @id @default(cuid())
-  specialtyId   String   @unique  // Una especialidad solo puede tener un item de servicio de consulta
-  serviceItemId String   // El item de servicio que se agrega automáticamente
-  variantId     String?  // Opcional: si el item tiene variantes
+  specialtyId   String   @unique // Una especialidad solo puede tener un item de servicio de consulta
+  serviceItemId String // El item de servicio que se agrega automáticamente
+  variantId     String? // Opcional: si el item tiene variantes
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -293,58 +292,58 @@ model ConsultaEspecialidad {
 
 // Modelo de Citas Médicas
 model Appointment {
-  id            String    @id @default(cuid())
-  patientId     String
-  specialtyId   String
+  id              String   @id @default(cuid())
+  patientId       String
+  specialtyId     String
   appointmentDate DateTime
-  status        String    @default("programado") // programado, pendiente, completado, cancelado
-  notes         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  patient    Patient    @relation(fields: [patientId], references: [id])
-  specialty  Specialty  @relation(fields: [specialtyId], references: [id])
-  preclinica Preclinica?
+  status          String   @default("programado") // programado, pendiente, completado, cancelado
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  patient         Patient          @relation(fields: [patientId], references: [id])
+  specialty       Specialty        @relation(fields: [specialtyId], references: [id])
+  preclinica      Preclinica?
   dischargeRecord DischargeRecord?
-  
+
   @@map("appointments")
 }
 
 // Modelo de Preclínica
 model Preclinica {
-  id                 String    @id @default(cuid())
-  appointmentId      String?   @unique // Ahora opcional
-  hospitalizationId  String?   // Nueva relación con hospitalización
-  presionArterial    String?   // Ej: 120/80
-  temperatura        Float?    // En grados Celsius
-  fc                 Int?      // Frecuencia cardíaca
-  fr                 Int?      // Frecuencia respiratoria
-  satO2              Int?      // Saturación de oxígeno %
-  peso               Float?    // Peso en libras
-  talla              Float?    // Altura en cm
-  examenFisico       String?   // Examen físico general
-  idc                String?   // Impresión diagnóstica clínica
-  tx                 String?   // Tratamiento
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  
-  appointment      Appointment?     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  hospitalization  Hospitalization? @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
-  
+  id                String   @id @default(cuid())
+  appointmentId     String?  @unique // Ahora opcional
+  hospitalizationId String? // Nueva relación con hospitalización
+  presionArterial   String? // Ej: 120/80
+  temperatura       Float? // En grados Celsius
+  fc                Int? // Frecuencia cardíaca
+  fr                Int? // Frecuencia respiratoria
+  satO2             Int? // Saturación de oxígeno %
+  peso              Float? // Peso en libras
+  talla             Float? // Altura en cm
+  examenFisico      String? // Examen físico general
+  idc               String? // Impresión diagnóstica clínica
+  tx                String? // Tratamiento
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  appointment     Appointment?     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  hospitalization Hospitalization? @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
+
   @@map("preclinicas")
 }
 
 // Modelo de Control de Insulina
 model InsulinControl {
-  id                String   @id @default(cuid())
-  hospitalizationId String
-  resultado         Float    // Resultado de glucosa en mg/dL
+  id                   String   @id @default(cuid())
+  hospitalizationId    String
+  resultado            Float // Resultado de glucosa en mg/dL
   insulinaAdministrada Float // Unidades de insulina administradas
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
   hospitalization Hospitalization @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
-  
+
   @@map("insulin_controls")
 }
 
@@ -352,18 +351,18 @@ model InsulinControl {
 model IntakeOutputControl {
   id                String   @id @default(cuid())
   hospitalizationId String
-  type              String   // "ingesta" o "excreta"
+  type              String // "ingesta" o "excreta"
   // Campos para ingestas
-  ingestaType       String?  // "oral" o "parenteral" (solo si type = "ingesta")
-  cantidad          Float?   // Cantidad en ml (solo si type = "ingesta")
+  ingestaType       String? // "oral" o "parenteral" (solo si type = "ingesta")
+  cantidad          Float? // Cantidad en ml (solo si type = "ingesta")
   // Campos para excretas
-  excretaType       String?  // "orina", "heces", "vomitos", "sng", "drenaje", "otros" (solo si type = "excreta")
+  excretaType       String? // "orina", "heces", "vomitos", "sng", "drenaje", "otros" (solo si type = "excreta")
   excretaCantidad   Float?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
+
   hospitalization Hospitalization @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
-  
+
   @@map("intake_output_controls")
 }
 
@@ -389,9 +388,9 @@ model ExamenFisico {
   diagnostico       String?  @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
+
   hospitalization Hospitalization @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
-  
+
   @@map("examen_fisicos")
 }
 
@@ -402,10 +401,10 @@ model MedicationControl {
   notes             String?  @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
-  hospitalization Hospitalization @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
+
+  hospitalization Hospitalization         @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
   items           MedicationControlItem[]
-  
+
   @@map("medication_controls")
 }
 
@@ -413,19 +412,19 @@ model MedicationControl {
 model MedicationControlItem {
   id                  String   @id @default(cuid())
   medicationControlId String
-  serviceItemId       String?  // Referencia al item de servicio (opcional)
-  variantId           String?  // Variante del item (opcional)
-  medicationNameId    String?  // Referencia a catálogo simple de medicamentos
+  serviceItemId       String? // Referencia al item de servicio (opcional)
+  variantId           String? // Variante del item (opcional)
+  medicationNameId    String? // Referencia a catálogo simple de medicamentos
   quantity            Int      @default(1)
   notes               String?  @db.Text
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
-  
-  medicationControl MedicationControl  @relation(fields: [medicationControlId], references: [id], onDelete: Cascade)
+
+  medicationControl MedicationControl   @relation(fields: [medicationControlId], references: [id], onDelete: Cascade)
   serviceItem       ServiceItem?        @relation(fields: [serviceItemId], references: [id])
   variant           ServiceItemVariant? @relation(fields: [variantId], references: [id])
   medicationName    MedicationName?     @relation(fields: [medicationNameId], references: [id])
-  
+
   @@map("medication_control_items")
 }
 
@@ -436,43 +435,43 @@ model NursingNote {
   content           String   @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
+
   hospitalization Hospitalization @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
-  
+
   @@map("nursing_notes")
 }
 
 // Modelo de Registro de Admisión
 model AdmissionRecord {
-  id                String   @id @default(cuid())
-  hospitalizationId String   @unique // Solo uno por hospitalización
-  
+  id                String @id @default(cuid())
+  hospitalizationId String @unique // Solo uno por hospitalización
+
   // Historia Clínica
-  hea               String?  @db.Text // H.E.A
-  fog               String?  @db.Text // F.O.G.
-  antecedentesPatologicos String? @db.Text
-  antecedentesInmunoAlergicos String? @db.Text
-  antecedentesGO String? @db.Text
+  hea                                String? @db.Text // H.E.A
+  fog                                String? @db.Text // F.O.G.
+  antecedentesPatologicos            String? @db.Text
+  antecedentesInmunoAlergicos        String? @db.Text
+  antecedentesGO                     String? @db.Text
   antecedentesTraumaticosQuirurgicos String? @db.Text
-  antecedentesFamiliares String? @db.Text
-  
+  antecedentesFamiliares             String? @db.Text
+
   // Órdenes y Anotaciones Médicas
-  dieta             String?  @db.Text
-  signosVitalesHoras Int?   // Cada cuántas horas
-  semifowler        Boolean  @default(false)
-  fowler            Boolean  @default(false)
-  liquidosIV        String?  @db.Text
-  medicamentos      String?  @db.Text
+  dieta               String? @db.Text
+  signosVitalesHoras  Int? // Cada cuántas horas
+  semifowler          Boolean @default(false)
+  fowler              Boolean @default(false)
+  liquidosIV          String? @db.Text
+  medicamentos        String? @db.Text
   examenesLaboratorio String? @db.Text
-  glocometria       String?  @db.Text
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  hospitalization   Hospitalization @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
-  anotaciones       AdmissionAnnotation[] // Múltiples anotaciones
-  ordenes           AdmissionOrder[]      // Múltiples órdenes
-  
+  glocometria         String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hospitalization Hospitalization       @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
+  anotaciones     AdmissionAnnotation[] // Múltiples anotaciones
+  ordenes         AdmissionOrder[] // Múltiples órdenes
+
   @@map("admission_records")
 }
 
@@ -482,9 +481,9 @@ model AdmissionAnnotation {
   content           String   @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
-  admissionRecord   AdmissionRecord @relation(fields: [admissionRecordId], references: [id], onDelete: Cascade)
-  
+
+  admissionRecord AdmissionRecord @relation(fields: [admissionRecordId], references: [id], onDelete: Cascade)
+
   @@map("admission_annotations")
 }
 
@@ -494,39 +493,39 @@ model AdmissionOrder {
   content           String   @db.Text
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
-  admissionRecord   AdmissionRecord @relation(fields: [admissionRecordId], references: [id], onDelete: Cascade)
-  
+
+  admissionRecord AdmissionRecord @relation(fields: [admissionRecordId], references: [id], onDelete: Cascade)
+
   @@map("admission_orders")
 }
 
 // Modelo de Registro de Alta
 model DischargeRecord {
-  id                String   @id @default(cuid())
-  hospitalizationId String   @unique // Solo uno por hospitalización
-  
+  id                String @id @default(cuid())
+  hospitalizationId String @unique // Solo uno por hospitalización
+
   // Información de Alta
-  diagnosticoIngreso String?  @db.Text
-  diagnosticoEgreso  String?  @db.Text
-  resumenClinico     String?  @db.Text
-  tratamiento        String?  @db.Text
-  condicionSalida    String?  // "Mejorado", "Igual", "Curado"
-  recomendaciones    String?  @db.Text
-  
+  diagnosticoIngreso String? @db.Text
+  diagnosticoEgreso  String? @db.Text
+  resumenClinico     String? @db.Text
+  tratamiento        String? @db.Text
+  condicionSalida    String? // "Mejorado", "Igual", "Curado"
+  recomendaciones    String? @db.Text
+
   // Cita de Consulta Externa
   citaConsultaExterna Boolean @default(false)
-  citaId             String?  @unique // Referencia a la cita creada
-  
+  citaId              String? @unique // Referencia a la cita creada
+
   // Cálculo de días
-  diasEstancia       Int      @default(1)
-  costoTotal         Decimal  @db.Decimal(10, 2)
-  
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  
-  hospitalization    Hospitalization @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
-  cita               Appointment?    @relation(fields: [citaId], references: [id])
-  
+  diasEstancia Int     @default(1)
+  costoTotal   Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  hospitalization Hospitalization @relation(fields: [hospitalizationId], references: [id], onDelete: Cascade)
+  cita            Appointment?    @relation(fields: [citaId], references: [id])
+
   @@map("discharge_records")
 }
 
@@ -536,320 +535,320 @@ model DischargeRecord {
 
 // Modelo principal de Cirugía
 model Surgery {
-  id                String   @id @default(cuid())
-  patientId         String
-  surgeryItemId     String   // ServiceItem con tag "cirugia"
-  status            String   @default("iniciada") // iniciada, finalizada
-  completedDate     DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  id            String    @id @default(cuid())
+  patientId     String
+  surgeryItemId String? // Opcional - ya no se usa para precio (se usa TransactionItem isCustom)
+  status        String    @default("iniciada") // iniciada, finalizada
+  completedDate DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
   // Relaciones
-  patient           Patient              @relation(fields: [patientId], references: [id])
-  surgeryItem       ServiceItem          @relation(fields: [surgeryItemId], references: [id])
-  hospitalizations  Hospitalization[]    // Hospitalizaciones relacionadas
-  payment           Payment?
-  
+  patient          Patient           @relation(fields: [patientId], references: [id])
+  surgeryItem      ServiceItem?      @relation(fields: [surgeryItemId], references: [id])
+  hospitalizations Hospitalization[] // Hospitalizaciones relacionadas
+  payment          Payment?
+
   // Formularios/Registros
-  operativeNote           OperativeNote?
-  medicalOrders           SurgeryMedicalOrders?
-  anesthesiaRecord        AnesthesiaRecord?
-  materialControls        MaterialControl[]
-  operatingRoomRequest    OperatingRoomRequest?
-  safetyChecklist         SafetyChecklist?
-  usedMaterials           UsedMaterials?
-  
+  operativeNote        OperativeNote?
+  medicalOrders        SurgeryMedicalOrders?
+  anesthesiaRecord     AnesthesiaRecord?
+  materialControls     MaterialControl[]
+  operatingRoomRequest OperatingRoomRequest?
+  safetyChecklist      SafetyChecklist?
+  usedMaterials        UsedMaterials?
+
   @@map("surgeries")
 }
 
 // Formulario 1: Nota Operatoria
 model OperativeNote {
-  id                      String @id @default(cuid())
-  surgeryId               String @unique
-  diagnosticoPreoperatorio String @db.Text
-  ayudante                String?
-  anestesia               String?
-  circulante              String?
-  instrumentalista        String?
-  sangrado                String?
-  complicaciones          String? @db.Text
-  conteoMaterial          String? @db.Text
-  hallazgos               String? @db.Text
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  
+  id                       String   @id @default(cuid())
+  surgeryId                String   @unique
+  diagnosticoPreoperatorio String   @db.Text
+  ayudante                 String?
+  anestesia                String?
+  circulante               String?
+  instrumentalista         String?
+  sangrado                 String?
+  complicaciones           String?  @db.Text
+  conteoMaterial           String?  @db.Text
+  hallazgos                String?  @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
   surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  
+
   @@map("operative_notes")
 }
 
 // Formulario 2: Órdenes y Anotaciones Médicas
 model SurgeryMedicalOrders {
-  id          String @id @default(cuid())
-  surgeryId   String @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  surgery     Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  surgeryId String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  surgery     Surgery             @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   anotaciones SurgeryAnnotation[]
   ordenes     SurgeryOrder[]
-  
+
   @@map("surgery_medical_orders")
 }
 
 model SurgeryAnnotation {
-  id                    String @id @default(cuid())
+  id                     String   @id @default(cuid())
   surgeryMedicalOrdersId String
-  content               String @db.Text
-  createdAt             DateTime @default(now())
-  
+  content                String   @db.Text
+  createdAt              DateTime @default(now())
+
   surgeryMedicalOrders SurgeryMedicalOrders @relation(fields: [surgeryMedicalOrdersId], references: [id], onDelete: Cascade)
-  
+
   @@map("surgery_annotations")
 }
 
 model SurgeryOrder {
-  id                    String @id @default(cuid())
+  id                     String   @id @default(cuid())
   surgeryMedicalOrdersId String
-  content               String @db.Text
-  createdAt             DateTime @default(now())
-  
+  content                String   @db.Text
+  createdAt              DateTime @default(now())
+
   surgeryMedicalOrders SurgeryMedicalOrders @relation(fields: [surgeryMedicalOrdersId], references: [id], onDelete: Cascade)
-  
+
   @@map("surgery_orders")
 }
 
 // Formulario 3: Registro de Anestesia (Pendiente)
 model AnesthesiaRecord {
-  id                      String   @id @default(cuid())
-  surgeryId               String   @unique
-  
+  id        String @id @default(cuid())
+  surgeryId String @unique
+
   premedicacion           String?
   estadoFisico            String?
   pronosticoOperatorio    String?
-  agentesTecnicas         String?  @db.Text
-  resumenLiquidos         String?  @db.Text
+  agentesTecnicas         String? @db.Text
+  resumenLiquidos         String? @db.Text
   tiempoDuracionAnestesia String?
   operacion               String?
   cirujano                String?
-  complicaciones          String?  @db.Text
+  complicaciones          String? @db.Text
   anestesiologo           String?
-  
+
   // Datos de la cuadrícula de monitoreo
-  gridData                String?  @db.Text // JSON string con los datos de la cuadrícula
-  
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-  
-  surgery                 Surgery  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  
+  gridData String? @db.Text // JSON string con los datos de la cuadrícula
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
   @@map("anesthesia_records")
 }
 
 // Formulario 4: Control de Materiales e Instrumentos
 model MaterialControl {
-  id                        String @id @default(cuid())
-  surgeryId                 String
-  moment                    String // "pre", "trans", "final"
-  
+  id        String @id @default(cuid())
+  surgeryId String
+  moment    String // "pre", "trans", "final"
+
   // Instrumentos (todos Int representando cantidad)
-  tijerasMetzembaumCurvas   Int @default(0)
-  tijerasMetzembaumRectas   Int @default(0)
-  tijeraMayoCurvas          Int @default(0)
-  tijeraMayoRectas          Int @default(0)
-  mangoBisturi              Int @default(0)
-  hemostaticaCurvas         Int @default(0)
-  hemostaticaRectas         Int @default(0)
-  pinzaKellyCurvas          Int @default(0)
-  pinzaKellyRectas          Int @default(0)
-  pinzaKochersCurvas        Int @default(0)
-  pinzaKorchersRectas       Int @default(0)
-  pinzaMosquitoCurvas       Int @default(0)
-  pinzaMosquitoRectas       Int @default(0)
-  pinzaAllis                Int @default(0)
-  pinzaBabcock              Int @default(0)
-  pinzaCampo                Int @default(0)
-  pinzaDiseccionSinDientes  Int @default(0)
-  pinzaDiseccionConDientes  Int @default(0)
-  pinzaAnillo               Int @default(0)
-  pinzaGinecologicas        Int @default(0)
-  pinzaMixter               Int @default(0)
-  portagujas                Int @default(0)
-  separadores               Int @default(0)
-  pinzaPeam                 Int @default(0)
-  otrosSeparadores          Int @default(0)
-  otrasPinzas               Int @default(0)
-  otros                     Int @default(0)
-  
+  tijerasMetzembaumCurvas  Int @default(0)
+  tijerasMetzembaumRectas  Int @default(0)
+  tijeraMayoCurvas         Int @default(0)
+  tijeraMayoRectas         Int @default(0)
+  mangoBisturi             Int @default(0)
+  hemostaticaCurvas        Int @default(0)
+  hemostaticaRectas        Int @default(0)
+  pinzaKellyCurvas         Int @default(0)
+  pinzaKellyRectas         Int @default(0)
+  pinzaKochersCurvas       Int @default(0)
+  pinzaKorchersRectas      Int @default(0)
+  pinzaMosquitoCurvas      Int @default(0)
+  pinzaMosquitoRectas      Int @default(0)
+  pinzaAllis               Int @default(0)
+  pinzaBabcock             Int @default(0)
+  pinzaCampo               Int @default(0)
+  pinzaDiseccionSinDientes Int @default(0)
+  pinzaDiseccionConDientes Int @default(0)
+  pinzaAnillo              Int @default(0)
+  pinzaGinecologicas       Int @default(0)
+  pinzaMixter              Int @default(0)
+  portagujas               Int @default(0)
+  separadores              Int @default(0)
+  pinzaPeam                Int @default(0)
+  otrosSeparadores         Int @default(0)
+  otrasPinzas              Int @default(0)
+  otros                    Int @default(0)
+
   // Suturas
-  cromico                   Int @default(0)
-  sedas                     Int @default(0)
-  nylon                     Int @default(0)
-  poliglactinaVicryl        Int @default(0)
-  otrasSuturas              Int @default(0)
-  otrosSuturas              Int @default(0)
-  
+  cromico            Int @default(0)
+  sedas              Int @default(0)
+  nylon              Int @default(0)
+  poliglactinaVicryl Int @default(0)
+  otrasSuturas       Int @default(0)
+  otrosSuturas       Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  
+
   @@map("material_controls")
 }
 
 // Formulario 5: Solicitud de Quirófano y Record Operatorio
 model OperatingRoomRequest {
-  id                          String @id @default(cuid())
-  surgeryId                   String @unique
-  diagnosticoPreoperatorio    String @db.Text
-  tipoAnestesia               String?
-  instrumentoEspecial         String?
-  
+  id                       String  @id @default(cuid())
+  surgeryId                String  @unique
+  diagnosticoPreoperatorio String  @db.Text
+  tipoAnestesia            String?
+  instrumentoEspecial      String?
+
   // Tiempos
-  horaSolicitud               DateTime?
-  horaLlegadaQx               DateTime?
-  horaEntraQx                 DateTime?
-  horaAnestesia               DateTime?
-  horaInicioQx                DateTime?
-  horaFinQx                   DateTime?
-  horaSaleQx                  DateTime?
-  horaRecibeRecuperacion      DateTime?
-  horaSaleRecuperacion        DateTime?
-  
+  horaSolicitud          DateTime?
+  horaLlegadaQx          DateTime?
+  horaEntraQx            DateTime?
+  horaAnestesia          DateTime?
+  horaInicioQx           DateTime?
+  horaFinQx              DateTime?
+  horaSaleQx             DateTime?
+  horaRecibeRecuperacion DateTime?
+  horaSaleRecuperacion   DateTime?
+
   // Booleans y detalles
-  usoSangre                   Boolean @default(false)
-  entregaOportunaSangre       Boolean @default(false)
-  complicacion                Boolean @default(false)
-  tipoComplicacion            String? @db.Text
-  contaminacionQuirofano      Boolean @default(false)
-  fumigaQuirofanoPor          String?
-  tiempo                      String?
-  
+  usoSangre              Boolean @default(false)
+  entregaOportunaSangre  Boolean @default(false)
+  complicacion           Boolean @default(false)
+  tipoComplicacion       String? @db.Text
+  contaminacionQuirofano Boolean @default(false)
+  fumigaQuirofanoPor     String?
+  tiempo                 String?
+
   // Personal
-  medicoSolicitante           String?
-  anestesiologoAnestesista    String?
-  instrumentista              String?
-  circulante                  String?
-  ayudantes                   String? @db.Text
-  observaciones               String? @db.Text
-  
+  medicoSolicitante        String?
+  anestesiologoAnestesista String?
+  instrumentista           String?
+  circulante               String?
+  ayudantes                String? @db.Text
+  observaciones            String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  
+
   @@map("operating_room_requests")
 }
 
 // Formulario 6: Lista de Verificación de Cirugía Segura
 model SafetyChecklist {
-  id        String @id @default(cuid())
-  surgeryId String @unique
+  id        String   @id @default(cuid())
+  surgeryId String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  surgery Surgery                 @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   entrada SafetyChecklistEntrada?
   pausa   SafetyChecklistPausa?
   salida  SafetyChecklistSalida?
-  
+
   @@map("safety_checklists")
 }
 
 model SafetyChecklistEntrada {
-  id                    String @id @default(cuid())
-  safetyChecklistId     String @unique
-  
+  id                String @id @default(cuid())
+  safetyChecklistId String @unique
+
   // Confirmaciones del paciente
-  confirmaIdentidad             Boolean @default(false)
-  confirmaLocalizacion          Boolean @default(false)
-  confirmaProcedimiento         Boolean @default(false)
-  confirmaConsentimiento        Boolean @default(false)
-  confirmaMarca                 Boolean @default(false)
-  verificacionSeguridad         Boolean @default(false)
-  
+  confirmaIdentidad      Boolean @default(false)
+  confirmaLocalizacion   Boolean @default(false)
+  confirmaProcedimiento  Boolean @default(false)
+  confirmaConsentimiento Boolean @default(false)
+  confirmaMarca          Boolean @default(false)
+  verificacionSeguridad  Boolean @default(false)
+
   // Tiene el paciente
-  alergiasConocidas             Boolean @default(false)
-  detallesAlergias              String? @db.Text
-  dificultadViaArea             Boolean @default(false)
-  accesoIVAdecuado              Boolean @default(false)
-  esterilidad                   Boolean @default(false)
-  profilaxisAntibiotica         Boolean @default(false)
-  imagenesEsenciales            Boolean @default(false)
-  
+  alergiasConocidas     Boolean @default(false)
+  detallesAlergias      String? @db.Text
+  dificultadViaArea     Boolean @default(false)
+  accesoIVAdecuado      Boolean @default(false)
+  esterilidad           Boolean @default(false)
+  profilaxisAntibiotica Boolean @default(false)
+  imagenesEsenciales    Boolean @default(false)
+
   createdAt DateTime @default(now())
-  
+
   safetyChecklist SafetyChecklist @relation(fields: [safetyChecklistId], references: [id], onDelete: Cascade)
-  
+
   @@map("safety_checklist_entrada")
 }
 
 model SafetyChecklistPausa {
-  id                    String @id @default(cuid())
-  safetyChecklistId     String @unique
-  
-  confirmacionEquipo            Boolean @default(false)
-  confirmaPaciente              Boolean @default(false)
-  confirmaSitio                 Boolean @default(false)
-  confirmaProcedimiento         Boolean @default(false)
-  
+  id                String @id @default(cuid())
+  safetyChecklistId String @unique
+
+  confirmacionEquipo    Boolean @default(false)
+  confirmaPaciente      Boolean @default(false)
+  confirmaSitio         Boolean @default(false)
+  confirmaProcedimiento Boolean @default(false)
+
   // Anticipación
-  pasosCriticos                 String? @db.Text
-  preocupacionesAnestesia       String? @db.Text
-  
+  pasosCriticos           String? @db.Text
+  preocupacionesAnestesia String? @db.Text
+
   createdAt DateTime @default(now())
-  
+
   safetyChecklist SafetyChecklist @relation(fields: [safetyChecklistId], references: [id], onDelete: Cascade)
-  
+
   @@map("safety_checklist_pausa")
 }
 
 model SafetyChecklistSalida {
-  id                    String @id @default(cuid())
-  safetyChecklistId     String @unique
-  
-  nombreProcedimiento           Boolean @default(false)
-  conteoGasas                   Boolean @default(false)
-  conteoAgujas                  Boolean @default(false)
-  identificacionMuestras        Boolean @default(false)
-  problemasEquipo               Boolean @default(false)
-  profilaxisTromboembolia       Boolean @default(false)
-  
+  id                String @id @default(cuid())
+  safetyChecklistId String @unique
+
+  nombreProcedimiento     Boolean @default(false)
+  conteoGasas             Boolean @default(false)
+  conteoAgujas            Boolean @default(false)
+  identificacionMuestras  Boolean @default(false)
+  problemasEquipo         Boolean @default(false)
+  profilaxisTromboembolia Boolean @default(false)
+
   createdAt DateTime @default(now())
-  
+
   safetyChecklist SafetyChecklist @relation(fields: [safetyChecklistId], references: [id], onDelete: Cascade)
-  
+
   @@map("safety_checklist_salida")
 }
 
 // Formulario 7: Materiales Utilizados en Cirugía
 model UsedMaterials {
-  id                    String @id @default(cuid())
-  surgeryId             String @unique
-  
-  gasas                 String?
-  torundas              String?
-  compresas             String?
-  aseptosan             String?
-  cloruro               String?
-  povedine              String?
-  sondaFoley            String?
-  bolsaRecolectoraOrina String?
-  bisturiNo             String?
+  id        String @id @default(cuid())
+  surgeryId String @unique
+
+  gasas                  String?
+  torundas               String?
+  compresas              String?
+  aseptosan              String?
+  cloruro                String?
+  povedine               String?
+  sondaFoley             String?
+  bolsaRecolectoraOrina  String?
+  bisturiNo              String?
   guantesEsterilesTallas String?
-  suturas               String? @db.Text
-  espadadraspo          String?
-  jeringas              String?
-  bolsaMuestraBiopsia   String?
-  manigtas              String?
-  lubricante            String?
-  otros                 String? @db.Text
-  
+  suturas                String? @db.Text
+  espadadraspo           String?
+  jeringas               String?
+  bolsaMuestraBiopsia    String?
+  manigtas               String?
+  lubricante             String?
+  otros                  String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  
+
   @@map("used_materials")
 }
 
@@ -860,45 +859,45 @@ model UsedMaterials {
 // Modelo de Item de Servicio (Medicamentos y Servicios)
 model ServiceItem {
   id          String   @id @default(cuid())
-  name        String   // Nombre del medicamento/servicio
+  name        String // Nombre del medicamento/servicio
   description String?  @db.Text // Descripción detallada
-  type        String   // "medicamento" o "servicio"
-  basePrice   Float    // Precio base en Lempiras
+  type        String // "medicamento" o "servicio"
+  basePrice   Float // Precio base en Lempiras
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relaciones
-  variants              ServiceItemVariant[]            // Variantes del item (1:N)
-  tags                  ServiceItemToTag[]              // Tags/Categorías (N:M)
-  specialties           ServiceItemToSpecialty[]        // Sub-tags de especialidades (N:M)
-  transactionItems      TransactionItem[]               // Items de transacción que usan este item
-  consultaEspecialidad  ConsultaEspecialidad[]          // Especialidades que usan este item para consultas automáticas
-  hospitalizations      Hospitalization[]               // Para dailyRateItemId
-  surgeries             Surgery[]                       // Cirugías que usan este item
-  medicationControlItems MedicationControlItem[]        // Control de medicamentos
-  
+  variants               ServiceItemVariant[] // Variantes del item (1:N)
+  tags                   ServiceItemToTag[] // Tags/Categorías (N:M)
+  specialties            ServiceItemToSpecialty[] // Sub-tags de especialidades (N:M)
+  transactionItems       TransactionItem[] // Items de transacción que usan este item
+  consultaEspecialidad   ConsultaEspecialidad[] // Especialidades que usan este item para consultas automáticas
+  hospitalizations       Hospitalization[] // Para dailyRateItemId
+  surgeries              Surgery[] // Cirugías que usan este item
+  medicationControlItems MedicationControlItem[] // Control de medicamentos
+
   @@map("service_items")
 }
 
 // Modelo de Variante de Item de Servicio
 model ServiceItemVariant {
   id            String   @id @default(cuid())
-  serviceItemId String   // ID del item de servicio al que pertenece
-  name          String   // Nombre de la variante (ej: "Nocturna", "Fin de semana")
+  serviceItemId String // ID del item de servicio al que pertenece
+  name          String // Nombre de la variante (ej: "Nocturna", "Fin de semana")
   description   String?  @db.Text // Descripción de la variante
-  price         Float    // Precio modificado en Lempiras
+  price         Float // Precio modificado en Lempiras
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   // Relaciones
-  serviceItem            ServiceItem              @relation(fields: [serviceItemId], references: [id], onDelete: Cascade)
-  transactionItems       TransactionItem[]        // Items de transacción que usan esta variante
-  consultaEspecialidad   ConsultaEspecialidad[]   // Especialidades que usan esta variante para consultas automáticas
-  hospitalizations       Hospitalization[]        // Hospitalizaciones que usan esta variante para cobro diario
-  medicationControlItems MedicationControlItem[]  // Control de medicamentos
-  
+  serviceItem            ServiceItem             @relation(fields: [serviceItemId], references: [id], onDelete: Cascade)
+  transactionItems       TransactionItem[] // Items de transacción que usan esta variante
+  consultaEspecialidad   ConsultaEspecialidad[] // Especialidades que usan esta variante para consultas automáticas
+  hospitalizations       Hospitalization[] // Hospitalizaciones que usan esta variante para cobro diario
+  medicationControlItems MedicationControlItem[] // Control de medicamentos
+
   @@map("service_item_variants")
 }
 
@@ -909,10 +908,10 @@ model Tag {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relaciones
   serviceItems ServiceItemToTag[]
-  
+
   @@map("tags")
 }
 
@@ -921,10 +920,10 @@ model ServiceItemToTag {
   serviceItemId String
   tagId         String
   createdAt     DateTime @default(now())
-  
+
   serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id], onDelete: Cascade)
   tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
-  
+
   @@id([serviceItemId, tagId])
   @@map("service_item_to_tags")
 }
@@ -935,10 +934,10 @@ model ServiceItemToSpecialty {
   serviceItemId String
   specialtyId   String
   createdAt     DateTime @default(now())
-  
+
   serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id], onDelete: Cascade)
   specialty   Specialty   @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
-  
+
   @@id([serviceItemId, specialtyId])
   @@map("service_item_to_specialties")
 }
@@ -949,86 +948,86 @@ model ServiceItemToSpecialty {
 
 // Modelo de Pago
 model Payment {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   patientId String
-  
+
   // Origen del pago (nullable, solo uno debe estar presente)
   consultationId    String?
   saleId            String?
   hospitalizationId String?
-  surgeryId         String?  @unique // Cirugía (si aplica)
-  
-  status        String   @default("pendiente") // pendiente, pagado, cancelado
-  total         Float    // Total calculado del pago
-  paymentMethod String?  // "efectivo", "tarjeta", "transferencia" (solo se define cuando se marca como pagado)
-  isActive      Boolean  @default(true) // Soft delete: false si el pago fue desactivado/eliminado
-  
+  surgeryId         String? @unique // Cirugía (si aplica)
+
+  status        String  @default("pendiente") // pendiente, pagado, cancelado
+  total         Float // Total calculado del pago
+  paymentMethod String? // "efectivo", "tarjeta", "transferencia" (solo se define cuando se marca como pagado)
+  isActive      Boolean @default(true) // Soft delete: false si el pago fue desactivado/eliminado
+
   // Descuentos
-  discountAmount Float?   @default(0) // Monto del descuento calculado
-  discountType   String?  // "percentage" o "absolute"
-  discountValue  Float?   // Valor del descuento ingresado (porcentaje o monto)
-  discountReason String?  @db.Text // Razón del descuento (opcional)
-  
+  discountAmount Float?  @default(0) // Monto del descuento calculado
+  discountType   String? // "percentage" o "absolute"
+  discountValue  Float? // Valor del descuento ingresado (porcentaje o monto)
+  discountReason String? @db.Text // Razón del descuento (opcional)
+
   // Campos para pagos parciales de hospitalización
   daysCoveredStartDate DateTime? // Fecha de inicio de días cobrados en este pago (solo para hospitalizaciones)
   daysCoveredEndDate   DateTime? // Fecha de fin de días cobrados en este pago (solo para hospitalizaciones)
-  daysCount            Int?      // Número de días cobrados en este pago (solo para hospitalizaciones)
-  
+  daysCount            Int? // Número de días cobrados en este pago (solo para hospitalizaciones)
+
   // Metadata
-  createdBy String?  // Usuario que creó el pago
-  notes     String?  @db.Text
-  
+  createdBy String? // Usuario que creó el pago
+  notes     String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relaciones
   patient         Patient          @relation(fields: [patientId], references: [id])
   consultation    Consultation?    @relation(fields: [consultationId], references: [id])
   sale            Sale?            @relation(fields: [saleId], references: [id])
   hospitalization Hospitalization? @relation(fields: [hospitalizationId], references: [id])
   surgery         Surgery?         @relation(fields: [surgeryId], references: [id])
-  radiologyOrder  RadiologyOrder?  // Nueva relación con órdenes de radiología
-  
-  invoices Invoice[] // Facturas/recibos generados de este pago
-  refunds  Refund[]   // Reembolsos asociados a este pago
+  radiologyOrder  RadiologyOrder? // Nueva relación con órdenes de radiología
+
+  invoices        Invoice[] // Facturas/recibos generados de este pago
+  refunds         Refund[] // Reembolsos asociados a este pago
   partialPayments PartialPayment[] // Pagos parciales por método
-  
+
   @@map("payments")
 }
 
 // Modelo de Reembolsos1
 model Refund {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   paymentId String
-  
-  amount    Float    // Monto del reembolso
-  reason    String   @db.Text // Motivo del reembolso
-  
+
+  amount Float // Monto del reembolso
+  reason String @db.Text // Motivo del reembolso
+
   // Metadata
-  createdBy String?  // Usuario que creó el reembolso
+  createdBy String? // Usuario que creó el reembolso
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relaciones
-  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
   @@map("refunds")
 }
 
 // Modelo de Pagos Parciales
 model PartialPayment {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   paymentId String
-  
-  method    String   // "efectivo", "tarjeta", "transferencia"
-  amount    Float    // Monto pagado con este método
-  
+
+  method String // "efectivo", "tarjeta", "transferencia"
+  amount Float // Monto pagado con este método
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relaciones
-  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
   @@map("partial_payments")
 }
 
@@ -1041,10 +1040,10 @@ model SystemConfig {
   id    String @id @default(cuid())
   key   String @unique // Clave única de la configuración
   value String @db.Text // Valor de la configuración (JSON string)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@map("system_config")
 }
 
@@ -1054,30 +1053,30 @@ model SystemConfig {
 
 // Modelo de Orden de Radiología
 model RadiologyOrder {
-  id              String   @id @default(cuid())
-  patientId       String
-  paymentId       String   @unique // Relación 1:1 con Payment
-  
+  id        String @id @default(cuid())
+  patientId String
+  paymentId String @unique // Relación 1:1 con Payment
+
   // Estado de la orden
-  status          String   @default("pending") // pending, in_progress, completed, cancelled
-  
+  status String @default("pending") // pending, in_progress, completed, cancelled
+
   // Resultados y observaciones
-  findings        String?  @db.Text // Hallazgos radiológicos
-  diagnosis       String?  @db.Text // Impresión diagnóstica
-  images          String?  @db.Text // JSON con URLs de imágenes subidas
-  performedBy     String?  // ID del radiólogo que realizó el estudio
-  
+  findings    String? @db.Text // Hallazgos radiológicos
+  diagnosis   String? @db.Text // Impresión diagnóstica
+  images      String? @db.Text // JSON con URLs de imágenes subidas
+  performedBy String? // ID del radiólogo que realizó el estudio
+
   // Metadata
-  notes           String?  @db.Text // Notas adicionales
-  completedAt     DateTime? // Fecha de finalización del estudio
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  notes       String?   @db.Text // Notas adicionales
+  completedAt DateTime? // Fecha de finalización del estudio
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relaciones
-  patient         Patient  @relation(fields: [patientId], references: [id])
-  payment         Payment  @relation(fields: [paymentId], references: [id])
-  
+  patient Patient @relation(fields: [patientId], references: [id])
+  payment Payment @relation(fields: [paymentId], references: [id])
+
   @@map("radiology_orders")
 }
 
@@ -1087,73 +1086,73 @@ model RadiologyOrder {
 
 // Modelo de Rango de Facturación (CAI)
 model InvoiceRange {
-  id                  String   @id @default(cuid())
-  rtn                 String   // RTN del emisor
-  razonSocial         String   @db.Text // Razón social del emisor
-  nombreComercial     String   @db.Text // Nombre comercial
-  cai                 String   // Código CAI autorizado por SAR
-  fechaLimiteEmision  DateTime // Fecha límite para emitir facturas
-  puntoEmision        String   // Ej: "000-002"
-  rangoInicio         Int      // Ej: 12701
-  rangoFin            Int      // Ej: 15700
-  correlativoActual   Int      @default(0) // Último número usado
-  cantidadAutorizada  Int      // Total de facturas autorizadas (rangoFin - rangoInicio + 1)
-  estado              String   @default("activo") // activo, vencido, agotado
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
+  id                 String   @id @default(cuid())
+  rtn                String // RTN del emisor
+  razonSocial        String   @db.Text // Razón social del emisor
+  nombreComercial    String   @db.Text // Nombre comercial
+  cai                String // Código CAI autorizado por SAR
+  fechaLimiteEmision DateTime // Fecha límite para emitir facturas
+  puntoEmision       String // Ej: "000-002"
+  rangoInicio        Int // Ej: 12701
+  rangoFin           Int // Ej: 15700
+  correlativoActual  Int      @default(0) // Último número usado
+  cantidadAutorizada Int // Total de facturas autorizadas (rangoFin - rangoInicio + 1)
+  estado             String   @default("activo") // activo, vencido, agotado
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
   // Relaciones
   invoices Invoice[] // Facturas emitidas con este CAI
-  
+
   @@unique([cai]) // El CAI debe ser único
   @@map("invoice_ranges")
 }
 
 // Modelo de Factura/Recibo Unificado
 model Invoice {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   paymentId String
-  type      String   // "legal" (con RTN) o "simple" (sin RTN)
-  
+  type      String // "legal" (con RTN) o "simple" (sin RTN)
+
   // Información del documento
   numeroDocumento String   @unique // Factura: "000-002-01-00012701" o Recibo: "REC-000001"
   fechaEmision    DateTime @default(now())
-  
+
   // Información del emisor
-  emisorNombre      String   // Nombre del hospital/clínica
-  emisorRTN         String?  // Solo para facturas legales
-  emisorRazonSocial String?  @db.Text // Solo para facturas legales
-  
+  emisorNombre      String // Nombre del hospital/clínica
+  emisorRTN         String? // Solo para facturas legales
+  emisorRazonSocial String? @db.Text // Solo para facturas legales
+
   // Información del cliente
-  clienteNombre     String   // Nombre del paciente o empresa
-  clienteIdentidad  String   // Identidad del paciente
-  clienteRTN        String?  // Solo para facturas legales (OBLIGATORIO si type = "legal")
-  
+  clienteNombre    String // Nombre del paciente o empresa
+  clienteIdentidad String // Identidad del paciente
+  clienteRTN       String? // Solo para facturas legales (OBLIGATORIO si type = "legal")
+
   // Detalle y montos
-  detalleGenerico   Boolean  @default(false) // Si usa "Servicios Médicos" genérico
-  subtotal          Float    // Monto sin ISV
-  descuentos        Float    @default(0)
-  isv               Float    // ISV (15%)
-  total             Float    // Total con ISV
-  
+  detalleGenerico Boolean @default(false) // Si usa "Servicios Médicos" genérico
+  subtotal        Float // Monto sin ISV
+  descuentos      Float   @default(0)
+  isv             Float // ISV (15%)
+  total           Float // Total con ISV
+
   // Solo para facturas fiscales (legal)
-  invoiceRangeId String?  // Rango de facturación usado
-  correlativo    Int?     // Número correlativo del rango
-  cai            String?  // CAI usado
-  
+  invoiceRangeId String? // Rango de facturación usado
+  correlativo    Int? // Número correlativo del rango
+  cai            String? // CAI usado
+
   // Información adicional
-  observaciones  String?  @db.Text
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
+  observaciones String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relaciones
   payment      Payment       @relation(fields: [paymentId], references: [id])
   invoiceRange InvoiceRange? @relation(fields: [invoiceRangeId], references: [id])
-  
+
   // ❌ NO tiene tabla de items
   // Los items se obtienen de payment.consultation.items, payment.sale.items, etc.
-  
+
   @@index([type])
   @@index([clienteRTN])
   @@index([fechaEmision])
@@ -1166,27 +1165,27 @@ model Invoice {
 
 // Modelo de Documentos Médicos (Constancias, Incapacidades, Órdenes de Examen)
 model MedicalDocument {
-  id          String   @id @default(cuid())
-  patientId   String
-  issuedBy    String   // userId del doctor que emite
-  documentType String  // "constancia", "incapacidad", "orden_examen"
-  
+  id           String @id @default(cuid())
+  patientId    String
+  issuedBy     String // userId del doctor que emite
+  documentType String // "constancia", "incapacidad", "orden_examen"
+
   // Campos específicos por tipo
-  constancia  String?  @db.Text // Solo para constancias
-  diagnostico String?  @db.Text // Para incapacidades
-  diasReposo  Int?     // Para incapacidades
-  fechaInicio DateTime? // Para incapacidades
-  fechaFin    DateTime? // Para incapacidades (calculada: fechaInicio + diasReposo)
-  tipoExamen  String?  // Para órdenes de examen
-  indicaciones String? @db.Text // Para órdenes de examen
-  urgencia    String?  // Para órdenes: "normal", "urgente"
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  patient     Patient  @relation(fields: [patientId], references: [id])
-  issuer      User     @relation(fields: [issuedBy], references: [id])
-  
+  constancia   String?   @db.Text // Solo para constancias
+  diagnostico  String?   @db.Text // Para incapacidades
+  diasReposo   Int? // Para incapacidades
+  fechaInicio  DateTime? // Para incapacidades
+  fechaFin     DateTime? // Para incapacidades (calculada: fechaInicio + diasReposo)
+  tipoExamen   String? // Para órdenes de examen
+  indicaciones String?   @db.Text // Para órdenes de examen
+  urgencia     String? // Para órdenes: "normal", "urgente"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  issuer  User    @relation(fields: [issuedBy], references: [id])
+
   @@index([patientId])
   @@index([issuedBy])
   @@map("medical_documents")

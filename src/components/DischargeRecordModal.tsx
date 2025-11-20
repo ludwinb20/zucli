@@ -48,7 +48,7 @@ export default function DischargeRecordModal({
 }: DischargeRecordModalProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    // Información de Alta
+    // Información de Epicrisis
     diagnosticoIngreso: "",
     diagnosticoEgreso: "",
     resumenClinico: "",
@@ -189,7 +189,7 @@ export default function DischargeRecordModal({
     }
 
     const data: CreateDischargeRecordData = {
-      // Información de Alta
+      // Información de Epicrisis
       diagnosticoIngreso: formData.diagnosticoIngreso.trim() || undefined,
       diagnosticoEgreso: formData.diagnosticoEgreso.trim() || undefined,
       resumenClinico: formData.resumenClinico.trim() || undefined,
@@ -247,12 +247,12 @@ export default function DischargeRecordModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LogOut className="h-5 w-5 text-[#2E9589]" />
-            {existingRecord ? "Editar Registro de Alta" : "Registro de Alta"}
+            {existingRecord ? "Editar Epicrisis" : "Epicrisis"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Información de Alta */}
+          {/* Información de Epicrisis */}
           <div className="space-y-4">            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -422,7 +422,7 @@ export default function DischargeRecordModal({
               className="gap-2 bg-[#2E9589] text-white hover:bg-[#2E9589]/90"
             >
               <LogOut className="h-4 w-4" />
-              {isLoading ? "Procesando..." : existingRecord ? "Actualizar Alta" : "Dar de Alta"}
+              {isLoading ? "Procesando..." : existingRecord ? "Actualizar Epicrisis" : "Guardar Epicrisis"}
             </Button>
           </div>
         </form>

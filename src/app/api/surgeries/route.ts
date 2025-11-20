@@ -21,9 +21,31 @@ export async function POST(request: NextRequest) {
     const body: CreateSurgeryData = await request.json();
 
     // Validaciones
-    if (!body.patientId || !body.surgeryItemId) {
+    if (!body.patientId) {
       return NextResponse.json(
-        { error: 'Paciente y servicio de cirugía son requeridos' },
+        { error: 'Paciente es requerido' },
+        { status: 400 }
+      );
+    }
+
+    if (!body.nombre || !body.nombre.trim()) {
+      return NextResponse.json(
+        { error: 'El concepto de la cirugía es requerido' },
+        { status: 400 }
+      );
+    }
+
+    if (!body.precioUnitario || body.precioUnitario <= 0) {
+      return NextResponse.json(
+        { error: 'El precio unitario debe ser mayor a 0' },
+        { status: 400 }
+      );
+    }
+
+    const quantity = body.quantity || 1;
+    if (quantity <= 0) {
+      return NextResponse.json(
+        { error: 'La cantidad debe ser mayor a 0' },
         { status: 400 }
       );
     }
@@ -40,42 +62,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar que el servicio existe y tiene tag "cirugia"
-    const surgeryItem = await prisma.serviceItem.findUnique({
-      where: { id: body.surgeryItemId },
-      include: {
-        tags: {
-          include: {
-            tag: true
+    // Si se proporciona surgeryItemId (opcional), verificar que existe
+    let surgeryItem = null;
+    if (body.surgeryItemId) {
+      surgeryItem = await prisma.serviceItem.findUnique({
+        where: { id: body.surgeryItemId },
+        include: {
+          tags: {
+            include: {
+              tag: true
+            }
           }
         }
+      });
+
+      if (!surgeryItem) {
+        return NextResponse.json(
+          { error: 'Servicio de cirugía no encontrado' },
+          { status: 404 }
+        );
       }
-    });
 
-    if (!surgeryItem) {
-      return NextResponse.json(
-        { error: 'Servicio de cirugía no encontrado' },
-        { status: 404 }
+      // Verificar que tiene el tag "cirugia" (opcional pero validar si se proporciona)
+      const hasCirugiaTag = surgeryItem.tags.some(st => 
+        st.tag.name.toLowerCase() === 'cirugias' || st.tag.name.toLowerCase() === 'cirugías'
       );
+
+      if (!hasCirugiaTag) {
+        return NextResponse.json(
+          { error: 'El servicio seleccionado no es un servicio de cirugía' },
+          { status: 400 }
+        );
+      }
     }
 
-    // Verificar que tiene el tag "cirugia"
-    const hasCirugiaTag = surgeryItem.tags.some(st => 
-      st.tag.name.toLowerCase() === 'cirugias' || st.tag.name.toLowerCase() === 'cirugías'
-    );
-
-    if (!hasCirugiaTag) {
-      return NextResponse.json(
-        { error: 'El servicio seleccionado no es un servicio de cirugía' },
-        { status: 400 }
-      );
-    }
+    // Calcular total
+    const total = body.precioUnitario * quantity;
 
     // Crear la cirugía
     const surgery = await prisma.surgery.create({
       data: {
         patientId: body.patientId,
-        surgeryItemId: body.surgeryItemId,
+        surgeryItemId: body.surgeryItemId || null,
         status: 'iniciada'
       },
       include: {
@@ -97,29 +125,32 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Crear el Payment automáticamente con el TransactionItem
+    // Crear el Payment automáticamente con el TransactionItem como item variable
     const payment = await prisma.payment.create({
       data: {
         patientId: body.patientId,
         surgeryId: surgery.id,
-        total: surgeryItem.basePrice,
+        total: total,
         status: 'pendiente',
-        notes: `Pago generado automáticamente para cirugía: ${surgeryItem.name}`
+        notes: `Pago generado automáticamente para cirugía: ${body.nombre.trim()}`
       }
     });
 
-    // Crear TransactionItem (vinculado por sourceType y sourceId)
+    // Crear TransactionItem como item variable (isCustom: true, serviceItemId: null)
     await prisma.transactionItem.create({
       data: {
         sourceType: 'surgery',
         sourceId: surgery.id,
-        serviceItemId: body.surgeryItemId,
-        quantity: 1,
-        nombre: surgeryItem.name,
-        precioUnitario: surgeryItem.basePrice,
+        serviceItemId: null, // Item variable no tiene serviceItemId
+        variantId: null,
+        quantity: quantity,
+        isCustom: true, // Marcar como item variable
+        nombre: body.nombre.trim(),
+        precioUnitario: body.precioUnitario,
         descuento: 0,
-        total: surgeryItem.basePrice,
-        notes: `Servicio de cirugía: ${surgeryItem.name}`
+        total: total,
+        addedBy: session.user.id, // Quien creó la cirugía (doctor de sala o recepcionista)
+        notes: `Servicio de cirugía: ${body.nombre.trim()}`
       }
     });
 
@@ -260,8 +291,28 @@ export async function GET(request: NextRequest) {
       prisma.surgery.count({ where })
     ]);
 
+    // Obtener TransactionItems para las cirugías (para mostrar el nombre cuando surgeryItem es null)
+    const surgeriesWithItems = await Promise.all(
+      surgeries.map(async (surgery) => {
+        const transactionItem = await prisma.transactionItem.findFirst({
+          where: {
+            sourceType: 'surgery',
+            sourceId: surgery.id
+          },
+          select: {
+            nombre: true
+          }
+        });
+
+        return {
+          ...surgery,
+          transactionItemName: transactionItem?.nombre || null
+        };
+      })
+    );
+
     return NextResponse.json({
-      surgeries,
+      surgeries: surgeriesWithItems,
       pagination: {
         page,
         limit,

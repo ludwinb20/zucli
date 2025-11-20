@@ -38,6 +38,9 @@ import {
   TimelineOppositeContent,
 } from '@mui/lab';
 import { HospitalizationWithRelations } from "@/types/hospitalization";
+import PrintEpicrisisModal from "./PrintEpicrisisModal";
+import { useState } from "react";
+import { Printer } from "lucide-react";
 
 interface TimelineTabProps {
   hospitalization: HospitalizationWithRelations;
@@ -64,6 +67,7 @@ export default function TimelineTab({
   onViewAdmissionRecord,
   onDischarge,
 }: TimelineTabProps) {
+  const [isPrintEpicrisisModalOpen, setIsPrintEpicrisisModalOpen] = useState(false);
   // Función para generar el contenido del dialog del examen físico
   const generateExamenFisicoDialogContent = (examenFisico: Record<string, unknown>) => {
     const fields = [
@@ -722,10 +726,21 @@ export default function TimelineTab({
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                          <LogOut className="h-5 w-5 text-red-600" />
-                          Información de Alta Médica
-                        </DialogTitle>
+                        <div className="flex items-center justify-between">
+                          <DialogTitle className="flex items-center gap-2">
+                            <LogOut className="h-5 w-5 text-red-600" />
+                            Epicrisis
+                          </DialogTitle>
+                          <Button
+                            onClick={() => setIsPrintEpicrisisModalOpen(true)}
+                            variant="outline"
+                            size="sm"
+                            className="border-[#2E9589] text-[#2E9589] hover:bg-[#2E9589]/10 mt-6"
+                          >
+                            <Printer className="h-4 w-4 mr-2" />
+                            Imprimir
+                          </Button>
+                        </div>
                       </DialogHeader>
                       
                       <div className="space-y-6">
@@ -831,6 +846,16 @@ export default function TimelineTab({
                       </div>
                     </DialogContent>
                   </Dialog>
+                  
+                  {/* Modal de impresión de Epicrisis */}
+                  {hospitalization.dischargeRecord && (
+                    <PrintEpicrisisModal
+                      isOpen={isPrintEpicrisisModalOpen}
+                      onClose={() => setIsPrintEpicrisisModalOpen(false)}
+                      dischargeRecord={hospitalization.dischargeRecord}
+                      hospitalization={hospitalization}
+                    />
+                  )}
                 </TimelineContent>
               </TimelineItem>
             )}

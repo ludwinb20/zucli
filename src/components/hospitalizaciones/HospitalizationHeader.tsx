@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Activity, LogOut, Calendar, Bed, Clock, Stethoscope, CheckCircle, FilePlus, DollarSign } from "lucide-react";
+import { Activity, LogOut, Calendar, Bed, Clock, Stethoscope, CheckCircle, FilePlus, DollarSign, Printer } from "lucide-react";
 import { HospitalizationWithRelations } from "@/types/hospitalization";
 import { formatDaysOfStay } from "@/lib/hospitalization-helpers";
 
@@ -10,6 +10,7 @@ interface HospitalizationHeaderProps {
   onDischarge: () => void;
   onEmitDocument?: () => void;
   onChangeDailyRate?: () => void;
+  onPrintEpicrisis?: () => void;
 }
 
 export default function HospitalizationHeader({
@@ -18,6 +19,7 @@ export default function HospitalizationHeader({
   onDischarge,
   onEmitDocument,
   onChangeDailyRate,
+  onPrintEpicrisis,
 }: HospitalizationHeaderProps) {
   const getStatusBadge = () => {
     if (hospitalization.status === "iniciada") {
@@ -73,6 +75,17 @@ export default function HospitalizationHeader({
             >
               <FilePlus className="h-4 w-4 mr-2" />
               Emitir Documento
+            </Button>
+          )}
+          {hospitalization.dischargeRecord && onPrintEpicrisis && (
+            <Button
+              onClick={onPrintEpicrisis}
+              variant="outline"
+              size="sm"
+              className="bg-white text-[#2E9589] border-[#2E9589] hover:bg-[#2E9589]/10"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir Epicrisis
             </Button>
           )}
           {isActive && (

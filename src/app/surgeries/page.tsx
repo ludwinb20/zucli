@@ -22,12 +22,17 @@ import {
 import { Surgery, SurgeryStatus } from "@/types/surgery";
 import SurgeryModal from "@/components/SurgeryModal";
 
+// Tipo auxiliar para cirugías con transactionItemName
+type SurgeryWithItemName = Surgery & {
+  transactionItemName?: string | null;
+};
+
 export default function SurgeriesPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+  const [surgeries, setSurgeries] = useState<SurgeryWithItemName[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -97,6 +102,7 @@ export default function SurgeriesPage() {
       surgery.patient?.firstName?.toLowerCase().includes(search) ||
       surgery.patient?.lastName?.toLowerCase().includes(search) ||
       surgery.patient?.identityNumber?.toLowerCase().includes(search) ||
+      surgery.transactionItemName?.toLowerCase().includes(search) ||
       surgery.surgeryItem?.name?.toLowerCase().includes(search)
     );
   });
@@ -197,7 +203,7 @@ export default function SurgeriesPage() {
                       </div>
                       <div className="flex items-center gap-2 text-gray-600">
                         <Stethoscope className="h-4 w-4" />
-                        <span>{surgery.surgeryItem?.name}</span>
+                        <span>{surgery.transactionItemName || surgery.surgeryItem?.name || 'Cirugía sin nombre'}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar className="h-4 w-4" />

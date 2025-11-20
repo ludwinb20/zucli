@@ -26,7 +26,9 @@ export interface Surgery {
     id: string;
     name: string;
     basePrice: number;
-  };
+  } | null;
+  // Nombre del TransactionItem (para cuando surgeryItem es null)
+  transactionItemName?: string | null;
   payment?: {
     id: string;
     total: number;
@@ -36,8 +38,12 @@ export interface Surgery {
 
 export interface CreateSurgeryData {
   patientId: string;
-  surgeryItemId: string;
+  surgeryItemId?: string; // Opcional, ya no se usa para el precio
   hospitalizationId?: string; // Si está relacionada con hospitalización
+  // Campos manuales para concepto y precio (similar a items variables)
+  nombre: string; // Concepto/descripción de la cirugía
+  precioUnitario: number; // Precio unitario (ISV incluido)
+  quantity?: number; // Cantidad (por defecto 1)
 }
 
 export interface UpdateSurgeryData {
