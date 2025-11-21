@@ -363,7 +363,12 @@ export default function PaymentsPage() {
       },
     };
 
-    const statusConfig = config[status];
+    const statusConfig = config[status] || {
+      className: "bg-gray-100 text-gray-800 border-gray-200",
+      icon: <HelpCircle size={12} />,
+      label: status || "Desconocido",
+    };
+
     return (
       <Badge className={`text-xs flex items-center space-x-1 ${statusConfig.className}`}>
         {statusConfig.icon}

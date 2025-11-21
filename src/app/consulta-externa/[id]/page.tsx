@@ -649,9 +649,14 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Síntomas */}
                 <div className="space-y-2">
-                  <Label htmlFor="sintomas" className="text-sm font-medium text-gray-700">
-                    Síntomas y Motivo de Consulta *
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="sintomas" className="text-sm font-medium text-gray-700">
+                      Síntomas y Motivo de Consulta *
+                    </Label>
+                    <span className="text-xs text-gray-500">
+                      {consultaData.sintomas.length} caracteres
+                    </span>
+                  </div>
                   <Textarea
                     id="sintomas"
                     value={consultaData.sintomas}
@@ -664,9 +669,14 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
 
                 {/* Diagnóstico */}
                 <div className="space-y-2">
-                  <Label htmlFor="diagnostico" className="text-sm font-medium text-gray-700">
-                    Diagnóstico *
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="diagnostico" className="text-sm font-medium text-gray-700">
+                      Diagnóstico *
+                    </Label>
+                    <span className="text-xs text-gray-500">
+                      {consultaData.diagnostico.length} caracteres
+                    </span>
+                  </div>
                   <Textarea
                     id="diagnostico"
                     value={consultaData.diagnostico}
@@ -695,9 +705,14 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
 
                 {/* Notas del Tratamiento - 1 columna */}
                 <div className="space-y-2 lg:col-span-1">
-                  <Label htmlFor="tratamientoNotas" className="text-sm font-medium text-gray-700">
-                    Notas del Tratamiento
-                </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="tratamientoNotas" className="text-sm font-medium text-gray-700">
+                      Notas del Tratamiento
+                    </Label>
+                    <span className="text-xs text-gray-500">
+                      {consultaData.tratamientoNotas.length} caracteres
+                    </span>
+                  </div>
                   <Textarea
                     id="tratamientoNotas"
                     value={consultaData.tratamientoNotas}
@@ -711,9 +726,14 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
 
               {/* Observaciones */}
               <div className="space-y-2">
-                <Label htmlFor="observaciones" className="text-sm font-medium text-gray-700">
-                  Observaciones Adicionales
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="observaciones" className="text-sm font-medium text-gray-700">
+                    Observaciones Adicionales
+                  </Label>
+                  <span className="text-xs text-gray-500">
+                    {consultaData.observaciones.length} caracteres
+                  </span>
+                </div>
                 <Textarea
                   id="observaciones"
                   value={consultaData.observaciones}

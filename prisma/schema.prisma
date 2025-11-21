@@ -147,11 +147,11 @@ model Consultation {
   id               String   @id @default(cuid())
   patientId        String
   doctorId         String // ID del usuario (especialista) que realiza la consulta
-  diagnosis        String?
-  currentIllness   String?
-  vitalSigns       String? // JSON string con signos vitales
-  treatment        String? // Notas del tratamiento
-  observations     String?
+  diagnosis        String?  @db.Text
+  currentIllness   String?  @db.Text
+  vitalSigns       String?  @db.Text // JSON string con signos vitales
+  treatment        String?  @db.Text // Notas del tratamiento
+  observations     String?  @db.Text
   consultationDate DateTime @default(now())
   status           String   @default("pending") // pending, completed, cancelled
   createdAt        DateTime @default(now())
