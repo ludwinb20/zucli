@@ -66,14 +66,17 @@ export default function DateRangePicker({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate ? new Date(startDate) : undefined}
-                onSelect={handleStartDateSelect}
-                initialFocus
-                locale={es}
-              />
+            <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-50" align="start">
+              <div className="bg-white rounded-md">
+                <Calendar
+                  mode="single"
+                  selected={startDate ? new Date(startDate) : undefined}
+                  onSelect={handleStartDateSelect}
+                  initialFocus
+                  locale={es}
+                  className="bg-white"
+                />
+              </div>
             </PopoverContent>
           </Popover>
         </div>
@@ -98,15 +101,18 @@ export default function DateRangePicker({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={endDate ? new Date(endDate) : undefined}
-                onSelect={handleEndDateSelect}
-                initialFocus
-                locale={es}
-                disabled={(date) => startDate ? date < new Date(startDate) : false}
-              />
+            <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-50" align="start">
+              <div className="bg-white rounded-md">
+                <Calendar
+                  mode="single"
+                  selected={endDate ? new Date(endDate) : undefined}
+                  onSelect={handleEndDateSelect}
+                  initialFocus
+                  locale={es}
+                  disabled={(date) => startDate ? date < new Date(startDate) : false}
+                  className="bg-white"
+                />
+              </div>
             </PopoverContent>
           </Popover>
         </div>
