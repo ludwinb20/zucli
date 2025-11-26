@@ -89,6 +89,41 @@ export async function PUT(
       }
     });
 
+    // Actualizar el pago si está pendiente
+    try {
+      // Obtener todos los items de la consulta
+      const consultationItems = await prisma.transactionItem.findMany({
+        where: {
+          sourceType: 'consultation',
+          sourceId: id
+        }
+      });
+
+      // Calcular el total de los items
+      const totalItems = consultationItems.reduce((sum, item) => sum + item.total, 0);
+
+      // Buscar el pago pendiente asociado a esta consulta
+      const pendingPayment = await prisma.payment.findFirst({
+        where: {
+          consultationId: id,
+          status: 'pendiente'
+        }
+      });
+
+      // Solo actualizar si el pago existe y está pendiente
+      if (pendingPayment) {
+        await prisma.payment.update({
+          where: { id: pendingPayment.id },
+          data: {
+            total: totalItems
+          }
+        });
+      }
+    } catch (paymentError) {
+      console.error('Error al actualizar el pago:', paymentError);
+      // No fallar la consulta si hay error en el pago
+    }
+
     return NextResponse.json(updatedConsultation);
 
   } catch (error) {

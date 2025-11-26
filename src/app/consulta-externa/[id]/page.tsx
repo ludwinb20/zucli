@@ -433,6 +433,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
           total: item.price * item.quantity,
         })),
         observations: consultaData.observaciones,
+        status: 'completed',
       };
 
         consultationResponse = await fetch('/api/consultations', {

@@ -48,6 +48,7 @@ export interface CreateConsultationData {
   treatment?: string;
   items?: CreateTransactionItemData[];
   observations?: string;
+  status?: string;
 }
 
 export type CreateConsultationItemData = CreateTransactionItemData;

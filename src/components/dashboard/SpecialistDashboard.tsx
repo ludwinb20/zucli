@@ -62,6 +62,12 @@ export function SpecialistDashboard() {
       icon: FileText,
       href: '/consulta-externa',
     },
+    {
+      title: 'Mis Consultas',
+      description: 'Ver historial de consultas completadas',
+      icon: ClipboardList,
+      href: '/consultations',
+    },
   ];
 
   const getStatusBadge = (status: string) => {

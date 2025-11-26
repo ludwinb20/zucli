@@ -15,16 +15,21 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const patientId = searchParams.get('patientId');
+    const doctorId = searchParams.get('doctorId');
     const status = searchParams.get('status');
     const limit = parseInt(searchParams.get('limit') || '100');
     const page = parseInt(searchParams.get('page') || '1');
     const offset = (page - 1) * limit;
 
     // Construir filtros
-    const where: { patientId?: string, status?: string } = {};
+    const where: { patientId?: string, doctorId?: string, status?: string } = {};
     
     if (patientId) {
       where.patientId = patientId;
+    }
+    
+    if (doctorId) {
+      where.doctorId = doctorId;
     }
     
     if (status) {
@@ -133,7 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: CreateConsultationData = await request.json();
-    const { patientId, doctorId, diagnosis, currentIllness, vitalSigns, treatment, items, observations } = body;
+    const { patientId, doctorId, diagnosis, currentIllness, vitalSigns, treatment, items, observations, status } = body;
 
     // Validar campos requeridos
     if (!patientId || !doctorId) {
@@ -159,6 +164,7 @@ export async function POST(request: NextRequest) {
         vitalSigns: vitalSigns || null,
         treatment: treatment || null,
         observations: observations || null,
+        status: status || 'pending',
       },
       include: {
         patient: {

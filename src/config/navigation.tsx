@@ -40,6 +40,12 @@ export const navigationItems: NavigationItem[] = [
     roles: ["especialista", "admin"],
   },
   {
+    name: "Mis Consultas",
+    href: "/consultations",
+    icon: <FileText size={20} />,
+    roles: ["especialista", "admin"],
+  },
+  {
     name: "Radiología",
     href: "/radiologia",
     icon: <Activity size={20} />,
