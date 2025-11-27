@@ -161,8 +161,24 @@ export async function POST(
     // Obtener la tarifa diaria
     const dailyRate = getDailyRate(hospitalization.dailyRateItem, hospitalization.dailyRateVariant);
 
+    // Validar que la tarifa diaria sea mayor a 0
+    if (dailyRate <= 0) {
+      return NextResponse.json(
+        { error: 'La tarifa diaria no está configurada o es inválida. No se puede crear un pago con total 0.' },
+        { status: 400 }
+      );
+    }
+
     // Calcular el total del pago parcial basado en los días seleccionados
     const calculatedTotal = daysToBillCount * dailyRate;
+    
+    // Validar que el total calculado sea mayor a 0
+    if (calculatedTotal <= 0) {
+      return NextResponse.json(
+        { error: 'El total calculado es 0. Verifique la tarifa diaria y los días seleccionados.' },
+        { status: 400 }
+      );
+    }
 
     // Validar y usar monto personalizado si se proporciona
     let totalCost = calculatedTotal;
@@ -181,6 +197,14 @@ export async function POST(
         );
       }
       totalCost = customAmountNum;
+    }
+    
+    // Validar que el total final sea mayor a 0
+    if (totalCost <= 0) {
+      return NextResponse.json(
+        { error: 'El total del pago debe ser mayor a 0' },
+        { status: 400 }
+      );
     }
 
     // Validar método de pago si se va a generar factura

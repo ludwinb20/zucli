@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const patientId = searchParams.get('patientId');
     const search = searchParams.get('search');
+    const withoutPayments = searchParams.get('withoutPayments') === 'true';
 
     const skip = (page - 1) * limit;
 
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     const where: {
       status?: string;
       patientId?: string;
+      id?: { notIn?: string[] };
       OR?: Array<{
         patient?: {
           firstName?: { contains: string; mode: 'insensitive' };
@@ -69,6 +71,32 @@ export async function GET(request: NextRequest) {
           },
         },
       ];
+    }
+
+    // Si se solicita solo hospitalizaciones sin pagos
+    if (withoutPayments) {
+      // Obtener IDs de hospitalizaciones que tienen pagos activos
+      const hospitalizationsWithPayments = await prisma.payment.findMany({
+        where: {
+          hospitalizationId: { not: null },
+          isActive: true,
+          status: { not: 'cancelado' },
+        },
+        select: {
+          hospitalizationId: true,
+        },
+        distinct: ['hospitalizationId'],
+      });
+
+      const hospitalizationIdsWithPayments = hospitalizationsWithPayments
+        .map(p => p.hospitalizationId)
+        .filter((id): id is string => id !== null);
+
+      // Filtrar solo hospitalizaciones activas que NO tienen pagos
+      where.status = 'iniciada';
+      where.id = {
+        notIn: hospitalizationIdsWithPayments,
+      };
     }
 
     // Contar total
@@ -279,19 +307,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Crear pago SOLO si NO está relacionada con una cirugía
-    // Si tiene surgeryId, el pago ya existe desde la cirugía
-    if (!surgeryId) {
-      await prisma.payment.create({
-        data: {
-          patientId,
-          hospitalizationId: hospitalization.id,
-          total: 0,
-          status: 'pendiente',
-          createdBy: session.user.id,
-        },
-      });
-    }
+    // NO crear pago al momento de crear la hospitalización
+    // El pago se creará cuando se facturen días (pago parcial o al dar de alta)
+    // Esto evita crear pagos con total 0 que aparecen en la vista de caja
 
     return NextResponse.json(hospitalization, { status: 201 });
   } catch (error) {

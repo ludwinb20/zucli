@@ -300,6 +300,20 @@ export async function PATCH(
       // Si hay días pendientes, crear un pago final para esos días
       if (pending.hasPendingDays && pending.daysCount > 0) {
         const totalCost = pending.daysCount * dailyRate;
+        
+        // Validar que el total sea mayor a 0
+        if (totalCost <= 0) {
+          console.error('Error: Intento de crear pago con total 0', {
+            hospitalizationId: id,
+            pendingDaysCount: pending.daysCount,
+            dailyRate,
+            totalCost
+          });
+          return NextResponse.json(
+            { error: 'No se puede crear un pago con total 0. Verifique la tarifa diaria configurada.' },
+            { status: 400 }
+          );
+        }
 
         await prisma.payment.create({
           data: {

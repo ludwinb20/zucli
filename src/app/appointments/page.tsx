@@ -108,7 +108,12 @@ export default function AppointmentsPage() {
       if (statusFilter !== 'all') {
         params.append('status', statusFilter);
       }
-      if (specialtyFilter !== 'all') {
+      
+      // Si el usuario es especialista, filtrar automáticamente por su especialidad
+      if (user?.role?.name === 'especialista' && user.specialty?.id) {
+        params.append('specialtyId', user.specialty.id);
+      } else if (specialtyFilter !== 'all') {
+        // Solo aplicar el filtro manual si no es especialista
         params.append('specialtyId', specialtyFilter);
       }
 
@@ -146,7 +151,7 @@ export default function AppointmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, statusFilter, specialtyFilter, specialties.length, toast]);
+  }, [currentPage, statusFilter, specialtyFilter, specialties.length, toast, user]);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -513,7 +518,9 @@ export default function AppointmentsPage() {
               Gestión de Citas
             </h2>
             <p className="text-gray-600">
-              Administra las citas médicas de los pacientes
+              {user?.role?.name === 'especialista'
+                ? `Citas de ${user.specialty?.name || 'tu especialidad'}`
+                : 'Administra las citas médicas de los pacientes'}
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -558,7 +565,7 @@ export default function AppointmentsPage() {
 
           {/* Filtros integrados */}
           <div className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-1 ${user?.role?.name === 'especialista' ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-4`}>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Buscar
@@ -598,27 +605,30 @@ export default function AppointmentsPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Especialidad
-                </label>
-                <Select
-                  value={specialtyFilter}
-                  onValueChange={setSpecialtyFilter}
-                >
-                  <SelectTrigger className="bg-white border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]">
-                    <SelectValue placeholder="Todas las especialidades" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las especialidades</SelectItem>
-                    {Array.isArray(specialties) && specialties.map((specialty) => (
-                      <SelectItem key={specialty.id} value={specialty.id}>
-                        {specialty.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Solo mostrar filtro de especialidad si no es especialista */}
+              {user?.role?.name !== 'especialista' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Especialidad
+                  </label>
+                  <Select
+                    value={specialtyFilter}
+                    onValueChange={setSpecialtyFilter}
+                  >
+                    <SelectTrigger className="bg-white border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589]">
+                      <SelectValue placeholder="Todas las especialidades" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las especialidades</SelectItem>
+                      {Array.isArray(specialties) && specialties.map((specialty) => (
+                        <SelectItem key={specialty.id} value={specialty.id}>
+                          {specialty.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">

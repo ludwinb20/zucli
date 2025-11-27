@@ -49,7 +49,6 @@ import {
   ShoppingCart,
   Building2,
   HelpCircle,
-  Activity,
   Scissors,
   Trash2,
 } from "lucide-react";
@@ -86,6 +85,29 @@ export default function PaymentsPage() {
   const [isPartialPaymentModalOpen, setIsPartialPaymentModalOpen] = useState(false);
   const [selectedHospitalizationId, setSelectedHospitalizationId] = useState<string | null>(null);
   const [hospitalizationStatus, setHospitalizationStatus] = useState<Record<string, { isActive: boolean; hasPendingDays: boolean }>>({});
+  interface HospitalizationWithoutPayment {
+    id: string;
+    patient: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      identityNumber: string;
+    };
+    admissionDate: string;
+    room: {
+      number: string;
+    } | null;
+    pendingDays?: {
+      daysCount: number;
+      startDate: string;
+      endDate: string;
+      hasPendingDays: boolean;
+      estimatedCost?: number;
+    };
+  }
+  
+  const [hospitalizationsWithoutPayments, setHospitalizationsWithoutPayments] = useState<HospitalizationWithoutPayment[]>([]);
+  const [loadingHospitalizations, setLoadingHospitalizations] = useState(false);
 
   // Verificar permisos
   useEffect(() => {
@@ -204,6 +226,48 @@ export default function PaymentsPage() {
       loadHospitalizationStatuses();
     }
   }, [payments]);
+
+  // Cargar hospitalizaciones activas sin pagos
+  const loadHospitalizationsWithoutPayments = useCallback(async () => {
+    try {
+      setLoadingHospitalizations(true);
+      const response = await fetch('/api/hospitalizations?withoutPayments=true&status=iniciada&limit=50');
+      if (response.ok) {
+        const data = await response.json();
+        // Obtener información de días pendientes para cada hospitalización
+        const hospitalizationsWithPendingInfo = await Promise.all(
+          (data.hospitalizations || []).map(async (hosp: HospitalizationWithoutPayment) => {
+            try {
+              const hospResponse = await fetch(`/api/hospitalizations/${hosp.id}`);
+              if (hospResponse.ok) {
+                const hospData = await hospResponse.json();
+                return {
+                  ...hosp,
+                  pendingDays: hospData.pendingDays,
+                };
+              }
+              return hosp;
+            } catch (error) {
+              console.error(`Error loading hospitalization ${hosp.id}:`, error);
+              return hosp;
+            }
+          })
+        );
+        setHospitalizationsWithoutPayments(hospitalizationsWithPendingInfo);
+      }
+    } catch (error) {
+      console.error("Error loading hospitalizations without payments:", error);
+    } finally {
+      setLoadingHospitalizations(false);
+    }
+  }, []);
+
+  // Cargar hospitalizaciones sin pagos cuando se carga la página
+  useEffect(() => {
+    if (user && (user.role.name === "caja" || user.role.name === "admin")) {
+      loadHospitalizationsWithoutPayments();
+    }
+  }, [user, loadHospitalizationsWithoutPayments]);
 
   // Reset página al cambiar filtros
   const handleStatusFilterChange = (value: string) => {
@@ -442,6 +506,100 @@ export default function PaymentsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Hospitalizaciones Activas Sin Pagos */}
+      {hospitalizationsWithoutPayments.length >= 0 && (
+        <Card className="bg-transparent border-gray-200 mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#2E9589]" />
+              Hospitalizaciones Activas Sin Pagos ({hospitalizationsWithoutPayments.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingHospitalizations ? (
+              <div className="flex items-center justify-center py-8">
+                <SpinnerWithText text="Cargando hospitalizaciones..." />
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {hospitalizationsWithoutPayments.map((hosp) => (
+                  <div
+                    key={hosp.id}
+                    className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors"
+                  >
+                    <div className="flex items-center space-x-4 flex-1">
+                      <div className="w-12 h-12 bg-amber-500 text-white rounded-full flex items-center justify-center">
+                        <Building2 size={24} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-1">
+                          <h3 className="font-semibold text-gray-900 text-lg">
+                            {hosp.patient.firstName} {hosp.patient.lastName}
+                          </h3>
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                            Sin Pago
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-6 text-sm text-gray-600 flex-wrap">
+                          <div className="flex items-center space-x-1">
+                            <User className="h-4 w-4" />
+                            <span>ID: {hosp.patient.identityNumber}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-4 w-4" />
+                            <span>
+                              Ingreso: {new Date(hosp.admissionDate).toLocaleDateString("es-ES")}
+                            </span>
+                          </div>
+                          {hosp.room && (
+                            <div className="flex items-center space-x-1">
+                              <Building2 className="h-4 w-4" />
+                              <span>Habitación: {hosp.room.number}</span>
+                            </div>
+                          )}
+                          {hosp.pendingDays?.hasPendingDays && (
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-4 w-4 text-amber-600" />
+                              <span className="text-amber-700 font-medium">
+                                {hosp.pendingDays.daysCount} día{hosp.pendingDays.daysCount !== 1 ? 's' : ''} pendiente{hosp.pendingDays.daysCount !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        {hosp.pendingDays?.hasPendingDays && (
+                          <div className="mt-2 text-sm text-gray-700">
+                            <span className="font-medium">Costo estimado: </span>
+                            <span className="text-[#2E9589] font-semibold">
+                              L {hosp.pendingDays.estimatedCost?.toFixed(2) || '0.00'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-shrink-0">
+                      {hosp.pendingDays?.hasPendingDays ? (
+                        <Button
+                          onClick={() => handleOpenPartialPayment(hosp.id)}
+                          className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+                          size="sm"
+                        >
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          Facturar Días Pendientes
+                        </Button>
+                      ) : (
+                        <div className="text-sm text-gray-500 px-3 py-2">
+                          Sin días pendientes
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Payments List */}

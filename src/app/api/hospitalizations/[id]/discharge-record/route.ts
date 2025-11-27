@@ -103,6 +103,15 @@ export async function POST(
     } else if (hospitalization.dailyRateItem?.basePrice) {
       precioPorDia = Number(hospitalization.dailyRateItem.basePrice);
     }
+    
+    // Validar que haya tarifa configurada
+    if (precioPorDia <= 0) {
+      return NextResponse.json(
+        { error: 'La hospitalización no tiene tarifa diaria configurada o la tarifa es inválida' },
+        { status: 400 }
+      );
+    }
+    
     const costoTotal = diasEstancia * precioPorDia;
 
     // Crear el registro de alta
@@ -185,6 +194,20 @@ export async function POST(
       // Si hay días pendientes, crear un pago final para esos días
       if (pending.hasPendingDays && pending.daysCount > 0) {
         const pendingCost = pending.daysCount * precioPorDia;
+        
+        // Validar que el costo pendiente sea mayor a 0
+        if (pendingCost <= 0) {
+          console.error('Error: Intento de crear pago con total 0', {
+            hospitalizationId,
+            pendingDaysCount: pending.daysCount,
+            precioPorDia,
+            pendingCost
+          });
+          return NextResponse.json(
+            { error: 'No se puede crear un pago con total 0. Verifique la tarifa diaria configurada.' },
+            { status: 400 }
+          );
+        }
 
         await prisma.payment.create({
           data: {
