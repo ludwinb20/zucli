@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UpdateAppointmentData } from '@/types/appointments';
 
+// Función para asignar número de turno
+async function assignTurnNumber(specialtyId: string, appointmentDate: Date): Promise<number> {
+  // Obtener el inicio del día en la zona horaria local
+  const dateStart = new Date(appointmentDate);
+  dateStart.setHours(0, 0, 0, 0);
+  
+  const dateEnd = new Date(dateStart);
+  dateEnd.setHours(23, 59, 59, 999);
+
+  // Contar cuántas citas pendientes hay para esta especialidad en este día
+  const count = await prisma.appointment.count({
+    where: {
+      specialtyId,
+      status: 'pendiente',
+      appointmentDate: {
+        gte: dateStart,
+        lte: dateEnd
+      },
+      turnNumber: {
+        not: null
+      }
+    }
+  });
+
+  // El siguiente número de turno es el count + 1
+  return count + 1;
+}
+
 // GET /api/appointments/[id] - Obtener cita por ID
 export async function GET(
   request: NextRequest,
@@ -213,6 +241,19 @@ export async function PUT(
       }
     }
 
+    // Si el estado cambia a "pendiente", asignar número de turno
+    let turnNumber = existingAppointment.turnNumber;
+    const finalSpecialtyId = specialtyId || existingAppointment.specialtyId;
+    const finalAppointmentDate = appointmentDate ? new Date(appointmentDate) : existingAppointment.appointmentDate;
+
+    if (status === 'pendiente' && existingAppointment.status !== 'pendiente') {
+      // Si está pasando a pendiente, asignar número de turno
+      turnNumber = await assignTurnNumber(finalSpecialtyId, finalAppointmentDate);
+    } else if (status && status !== 'pendiente' && existingAppointment.status === 'pendiente') {
+      // Si está saliendo de pendiente, limpiar el número de turno
+      turnNumber = null;
+    }
+
     const updatedAppointment = await prisma.appointment.update({
       where: { id },
       data: {
@@ -220,6 +261,7 @@ export async function PUT(
         ...(specialtyId && { specialtyId }),
         ...(appointmentDate && { appointmentDate: new Date(appointmentDate) }),
         ...(status && { status }),
+        ...(turnNumber !== undefined && { turnNumber }),
         ...(notes !== undefined && { notes: notes?.trim() || null })
       },
       include: {

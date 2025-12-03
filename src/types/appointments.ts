@@ -6,6 +6,10 @@ export interface Specialty {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  users?: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 export interface CreateSpecialtyData {
@@ -29,6 +33,7 @@ export interface Appointment {
   specialtyId: string;
   appointmentDate: Date;
   status: AppointmentStatus;
+  turnNumber?: number | null; // Número de turno (solo para citas pendientes)
   notes?: string;
   createdAt: Date;
   updatedAt: Date;

@@ -566,12 +566,27 @@ export default function PatientAppointmentModal({
                     <SelectTrigger className={`border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589] ${errors.specialtyId ? 'border-red-500' : ''}`}>
                       <SelectValue placeholder="Seleccionar especialidad" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {specialties.map((specialty) => (
-                        <SelectItem key={specialty.id} value={specialty.id}>
-                          {specialty.name}
-                        </SelectItem>
-                      ))}
+                    <SelectContent 
+                      position="popper"
+                      sideOffset={5}
+                      collisionPadding={8}
+                      className="max-h-[300px]"
+                    >
+                      {specialties.map((specialty) => {
+                        const specialists = Array.isArray(specialty.users) ? specialty.users : [];
+                        const specialistNames = specialists
+                          .map((user: { name: string }) => user.name)
+                          .join(', ');
+                        const displayText = specialistNames 
+                          ? `${specialty.name} - ${specialistNames}`
+                          : specialty.name;
+                        
+                        return (
+                          <SelectItem key={specialty.id} value={specialty.id}>
+                            {displayText}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   {errors.specialtyId && (

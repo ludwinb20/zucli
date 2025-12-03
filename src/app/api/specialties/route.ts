@@ -17,6 +17,21 @@ export async function GET() {
         specialtyDays: {
           orderBy: { dayOfWeek: 'asc' }
         },
+        users: {
+          where: {
+            isActive: true,
+            role: {
+              name: 'especialista'
+            }
+          },
+          select: {
+            id: true,
+            name: true
+          },
+          orderBy: {
+            name: 'asc'
+          }
+        },
         _count: {
           select: {
             appointments: true,

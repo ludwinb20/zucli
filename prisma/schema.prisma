@@ -297,6 +297,7 @@ model Appointment {
   specialtyId     String
   appointmentDate DateTime
   status          String   @default("programado") // programado, pendiente, completado, cancelado
+  turnNumber      Int? // Número de turno (solo para citas pendientes, por especialidad y día)
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

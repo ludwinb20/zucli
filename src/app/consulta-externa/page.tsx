@@ -26,14 +26,29 @@ import {
   Stethoscope,
   Eye,
   RefreshCw,
+  Plus,
+  X,
 } from "lucide-react";
 import {
   Appointment,
   Specialty,
+  AppointmentStatus,
 } from "@/types/appointments";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import NuevaConsultaDirectaModal from "@/components/NuevaConsultaDirectaModal";
+import ChangeStatusModal from "@/components/ChangeStatusModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function ConsultaExternaPage() {
   const { user } = useAuth();
@@ -45,6 +60,11 @@ export default function ConsultaExternaPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [specialtyFilter, setSpecialtyFilter] = useState<string>("all");
+  const [isNuevaConsultaModalOpen, setIsNuevaConsultaModalOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<Appointment | null>(null);
+  const [changeStatusModalOpen, setChangeStatusModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -145,6 +165,84 @@ export default function ConsultaExternaPage() {
     router.push(`/consulta-externa/${appointment.id}`);
   };
 
+  const handleCancelAppointment = (appointment: Appointment) => {
+    setAppointmentToCancel(appointment);
+    setCancelDialogOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!appointmentToCancel) return;
+
+    try {
+      const response = await fetch(`/api/appointments/${appointmentToCancel.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: "cancelado" }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Éxito",
+          description: "Cita cancelada exitosamente",
+        });
+        loadData();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.error || "Error al cancelar la cita",
+          variant: "error",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al cancelar la cita",
+        variant: "error",
+      });
+    } finally {
+      setCancelDialogOpen(false);
+      setAppointmentToCancel(null);
+    }
+  };
+
+  const handleChangeStatus = async (appointmentId: string, newStatus: AppointmentStatus) => {
+    try {
+      const response = await fetch(`/api/appointments/${appointmentId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Éxito",
+          description: "Estado de la cita actualizado exitosamente",
+        });
+        setChangeStatusModalOpen(false);
+        setSelectedAppointment(null);
+        loadData();
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.error || "Error al actualizar el estado",
+          variant: "error",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al actualizar el estado",
+        variant: "error",
+      });
+    }
+  };
+
   // Si el usuario es recepcion, no mostrar nada (será redirigido)
   if (!user || user.role?.name === 'recepcion') {
     return null;
@@ -165,6 +263,17 @@ export default function ConsultaExternaPage() {
                 : `Citas pendientes de ${user?.specialty?.name || 'tu especialidad'}`
               }
             </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            {(user?.role?.name === 'especialista' || user?.role?.name === 'admin') && (
+              <Button
+                onClick={() => setIsNuevaConsultaModalOpen(true)}
+                className="flex items-center space-x-2 bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Nueva Consulta Directa</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -276,6 +385,11 @@ export default function ConsultaExternaPage() {
                         >
                           {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                         </Badge>
+                        {appointment.status === 'pendiente' && appointment.turnNumber && (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-semibold">
+                            Turno #{appointment.turnNumber}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-600">
                         <span className="flex items-center space-x-1">
@@ -305,8 +419,8 @@ export default function ConsultaExternaPage() {
                     </div>
                   </div>
                   
-                  {/* Botón de acción */}
-                  <div className="flex items-center">
+                  {/* Botones de acción */}
+                  <div className="flex items-center space-x-2">
                     <Button
                       onClick={() => handleStartConsultation(appointment)}
                       className="bg-[#2E9589] hover:bg-[#2E9589]/90 text-white"
@@ -314,6 +428,14 @@ export default function ConsultaExternaPage() {
                     >
                       <Eye size={16} />
                       <span className="ml-1">Pasar a consulta</span>
+                    </Button>
+                    <Button
+                      onClick={() => handleCancelAppointment(appointment)}
+                      variant="outline"
+                      className="border-red-300 text-red-600 hover:bg-red-50"
+                      title="Cancelar cita"
+                    >
+                      <X size={16} />
                     </Button>
                   </div>
                 </div>
@@ -323,6 +445,37 @@ export default function ConsultaExternaPage() {
         </CardContent>
       </Card>
 
+      {/* Modal de Nueva Consulta Directa */}
+      <NuevaConsultaDirectaModal
+        isOpen={isNuevaConsultaModalOpen}
+        onClose={() => {
+          setIsNuevaConsultaModalOpen(false);
+          loadData();
+        }}
+      />
+
+      {/* Dialog de confirmación para cancelar */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar Cita</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas cancelar esta cita? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCancelDialogOpen(false)}>
+              No, mantener
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancel}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Sí, cancelar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

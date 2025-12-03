@@ -98,9 +98,103 @@ export async function POST(
       },
     });
 
+    // Actualizar el pago si está pendiente
+    try {
+      const consultationItems = await prisma.transactionItem.findMany({
+        where: {
+          sourceType: 'consultation',
+          sourceId: consultationId
+        }
+      });
+
+      const totalItems = consultationItems.reduce((sum, item) => sum + item.total, 0);
+
+      const pendingPayment = await prisma.payment.findFirst({
+        where: {
+          consultationId: consultationId,
+          status: 'pendiente'
+        }
+      });
+
+      if (pendingPayment) {
+        await prisma.payment.update({
+          where: { id: pendingPayment.id },
+          data: {
+            total: totalItems
+          }
+        });
+      }
+    } catch (paymentError) {
+      console.error('Error al actualizar el pago:', paymentError);
+    }
+
     return NextResponse.json(consultationItem, { status: 201 });
   } catch (error) {
     console.error("Error adding consultation item:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/consultations/[id]/items - Eliminar todos los items de una consulta
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { id: consultationId } = await params;
+
+    // Verificar que la consulta existe
+    const consultation = await prisma.consultation.findUnique({
+      where: { id: consultationId },
+    });
+
+    if (!consultation) {
+      return NextResponse.json(
+        { error: "Consulta no encontrada" },
+        { status: 404 }
+      );
+    }
+
+    // Eliminar todos los items de la consulta
+    await prisma.transactionItem.deleteMany({
+      where: {
+        sourceType: 'consultation',
+        sourceId: consultationId
+      }
+    });
+
+    // Actualizar el pago si está pendiente
+    try {
+      const pendingPayment = await prisma.payment.findFirst({
+        where: {
+          consultationId: consultationId,
+          status: 'pendiente'
+        }
+      });
+
+      if (pendingPayment) {
+        await prisma.payment.update({
+          where: { id: pendingPayment.id },
+          data: {
+            total: 0
+          }
+        });
+      }
+    } catch (paymentError) {
+      console.error('Error al actualizar el pago:', paymentError);
+    }
+
+    return NextResponse.json({ message: "Items eliminados correctamente" }, { status: 200 });
+  } catch (error) {
+    console.error("Error deleting consultation items:", error);
     return NextResponse.json(
       { error: "Error interno del servidor" },
       { status: 500 }

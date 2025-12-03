@@ -689,6 +689,11 @@ export default function AppointmentsPage() {
                         >
                           {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                         </Badge>
+                        {appointment.status === 'pendiente' && appointment.turnNumber && (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-semibold">
+                            Turno #{appointment.turnNumber}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center space-x-4 text-sm text-gray-600">
                         <span className="flex items-center space-x-1">

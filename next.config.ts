@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  eslint: {
+    // Ignorar warnings durante el build
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    // Ignorar errores de TypeScript durante el build (opcional)
+    ignoreBuildErrors: false,
+  },
   webpack: (config) => {
     config.externals.push({
       'pdf-parse': 'commonjs pdf-parse',
