@@ -39,6 +39,7 @@ model User {
 
   // Relaciones con módulos
   consultations                Consultation[]    @relation("consultations_as_doctor")
+  appointments                 Appointment[]      @relation("appointments_as_doctor")
   sales                        Sale[]            @relation("sales_as_cashier")
   medicalDocuments             MedicalDocument[] // Documentos médicos emitidos por el usuario
   hospitalizationsAsMedicoSala Hospitalization[] @relation("hospitalizations_as_medico_sala") // Hospitalizaciones donde es médico de sala
@@ -146,7 +147,7 @@ model TransactionItem {
 model Consultation {
   id               String   @id @default(cuid())
   patientId        String
-  doctorId         String // ID del usuario (especialista) que realiza la consulta
+  doctorId         String? // ID del usuario (especialista) que realiza la consulta (nullable si la especialidad no tiene doctores)
   diagnosis        String?  @db.Text
   currentIllness   String?  @db.Text
   vitalSigns       String?  @db.Text // JSON string con signos vitales
@@ -158,7 +159,7 @@ model Consultation {
   updatedAt        DateTime @updatedAt
 
   patient  Patient   @relation(fields: [patientId], references: [id])
-  doctor   User      @relation("consultations_as_doctor", fields: [doctorId], references: [id])
+  doctor   User?      @relation("consultations_as_doctor", fields: [doctorId], references: [id])
   payments Payment[] // Pagos generados de esta consulta
 
   @@map("consultations")
@@ -295,6 +296,7 @@ model Appointment {
   id              String   @id @default(cuid())
   patientId       String
   specialtyId     String
+  doctorId        String? // ID del doctor asignado (nullable si la especialidad no tiene doctores)
   appointmentDate DateTime
   status          String   @default("programado") // programado, pendiente, completado, cancelado
   turnNumber      Int? // Número de turno (solo para citas pendientes, por especialidad y día)
@@ -304,6 +306,7 @@ model Appointment {
 
   patient         Patient          @relation(fields: [patientId], references: [id])
   specialty       Specialty        @relation(fields: [specialtyId], references: [id])
+  doctor          User?            @relation("appointments_as_doctor", fields: [doctorId], references: [id])
   preclinica      Preclinica?
   dischargeRecord DischargeRecord?
 

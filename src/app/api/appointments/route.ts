@@ -89,6 +89,12 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true
           }
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       },
       orderBy: status === 'pendiente' 
@@ -132,7 +138,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateAppointmentData = await request.json();
-    const { patientId, specialtyId, appointmentDate, status = 'programado', notes } = body;
+    const { patientId, specialtyId, doctorId, appointmentDate, status = 'programado', notes } = body;
 
     // Validaciones
     if (!patientId || !specialtyId || !appointmentDate) {
@@ -194,6 +200,7 @@ export async function POST(request: NextRequest) {
       data: {
         patientId,
         specialtyId,
+        doctorId: doctorId || null,
         appointmentDate: new Date(appointmentDate),
         status,
         turnNumber,

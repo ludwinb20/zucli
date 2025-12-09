@@ -19,6 +19,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -88,6 +98,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
   const [loadingItems, setLoadingItems] = useState(false);
   const [selectedOtherItem, setSelectedOtherItem] = useState<string>("");
   const [showOtherItems, setShowOtherItems] = useState(false);
+  const [showNoItemsAlert, setShowNoItemsAlert] = useState(false);
   
   // Estados de modales
   const [isPreclinicaModalOpen, setIsPreclinicaModalOpen] = useState(false);
@@ -201,15 +212,22 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
         }
 
         // Verificar permisos para especialistas
-        if (user?.role?.name === 'especialista' && 
-            user.specialty?.id !== appointmentData.specialtyId) {
-          toast({
-            title: "Error",
-            description: "No tienes permisos para ver esta cita",
-            variant: "error",
-          });
-          router.push('/consulta-externa');
-          return;
+        // Los especialistas pueden ver citas de su especialidad si:
+        // - La cita tiene su doctorId, O
+        // - La cita no tiene doctorId (null) y es de su especialidad
+        if (user?.role?.name === 'especialista') {
+          const canView = appointmentData.doctorId === user.id || 
+                         (appointmentData.specialtyId === user.specialty?.id && !appointmentData.doctorId);
+          
+          if (!canView) {
+            toast({
+              title: "Error",
+              description: "No tienes permisos para ver esta cita",
+              variant: "error",
+            });
+            router.push('/consulta-externa');
+            return;
+          }
         }
 
         // Cargar datos del paciente
@@ -265,11 +283,11 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
               const createConsultationRes = await fetch("/api/consultations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  patientId: appointmentData.patientId,
-                  doctorId: user.id,
-                  status: "pending",
-                  items: [
+                  body: JSON.stringify({
+                    patientId: appointmentData.patientId,
+                    doctorId: user?.role?.name === 'especialista' ? user.id : (appointmentData.doctorId || null),
+                    status: "pending",
+                    items: [
                     {
                       serviceItemId: config.serviceItemId,
                       variantId: config.variantId || null,
@@ -533,6 +551,13 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
         throw new Error("Datos faltantes");
       }
 
+      // Validar que se hayan seleccionado items para cobrar
+      if (consultaData.treatmentItems.length === 0) {
+        setSaving(false);
+        setShowNoItemsAlert(true);
+        return;
+      }
+
       let consultationResponse;
 
       if (currentConsultation) {
@@ -579,7 +604,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
         // Crear nueva consulta
       const consultationData: CreateConsultationData = {
         patientId: patient.id,
-        doctorId: user.id,
+        doctorId: user?.role?.name === 'especialista' ? user.id : (appointment?.doctorId || null),
         diagnosis: consultaData.diagnostico,
         currentIllness: consultaData.sintomas,
         treatment: consultaData.tratamientoNotas,
@@ -914,7 +939,11 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                   <>
                     {/* Botones de productos con tag de especialidad */}
                     <div className="space-y-2">
-                      <p className="text-sm text-gray-600 italic">
+                      <p className={`text-sm italic ${
+                        consultaData.treatmentItems.length === 0 
+                          ? 'text-red-600 font-medium' 
+                          : 'text-gray-600'
+                      }`}>
                         Seleccione todos los servicios que se le van a cobrar al paciente
                       </p>
                       {specialtyItems.length > 0 ? (
@@ -1111,6 +1140,114 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                 </div>
             </CardContent>
           </Card>
+
+          {/* AlertDialog para cuando no hay items seleccionados */}
+          <AlertDialog open={showNoItemsAlert} onOpenChange={setShowNoItemsAlert}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Atención</AlertDialogTitle>
+                <AlertDialogDescription>
+                  No se han seleccionado servicios o productos para cobrar al paciente. 
+                  ¿Desea continuar guardando la consulta sin items o agregar items antes de guardar?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setShowNoItemsAlert(false)}>
+                  Agregar items
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    setShowNoItemsAlert(false);
+                    try {
+                      setSaving(true);
+
+                      if (!appointment || !patient || !user) {
+                        throw new Error("Datos faltantes");
+                      }
+
+                      let consultationResponse;
+
+                      if (currentConsultation) {
+                        // Actualizar la consulta existente sin items
+                        consultationResponse = await fetch(`/api/consultations/${currentConsultation.id}`, {
+                          method: 'PUT',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            diagnosis: consultaData.diagnostico,
+                            currentIllness: consultaData.sintomas,
+                            treatment: consultaData.tratamientoNotas,
+                            observations: consultaData.observaciones,
+                            status: 'completed',
+                          }),
+                        });
+                      } else {
+                        // Crear nueva consulta sin items
+                        const consultationData: CreateConsultationData = {
+                          patientId: patient.id,
+                          doctorId: user?.role?.name === 'especialista' ? user.id : (appointment?.doctorId || null),
+                          diagnosis: consultaData.diagnostico,
+                          currentIllness: consultaData.sintomas,
+                          treatment: consultaData.tratamientoNotas,
+                          items: [],
+                          observations: consultaData.observaciones,
+                          status: 'completed',
+                        };
+
+                        consultationResponse = await fetch('/api/consultations', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify(consultationData),
+                        });
+                      }
+
+                      if (!consultationResponse.ok) {
+                        throw new Error('Error al guardar la consulta');
+                      }
+
+                      // Actualizar el estado de la cita a completado
+                      const appointmentResponse = await fetch(`/api/appointments/${appointment.id}`, {
+                        method: 'PATCH',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ status: 'completado' }),
+                      });
+
+                      if (!appointmentResponse.ok) {
+                        throw new Error('Error al actualizar el estado de la cita');
+                      }
+                      
+                      toast({
+                        title: "Éxito",
+                        description: "Consulta guardada exitosamente",
+                        variant: "success",
+                      });
+
+                      // Redirigir a consulta externa
+                      router.push('/consulta-externa');
+
+                    } catch (error) {
+                      console.error("Error saving consultation:", error);
+                      toast({
+                        title: "Error",
+                        description: "Error al guardar la consulta",
+                        variant: "error",
+                      });
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  className="bg-[#2E9589] hover:bg-[#2E9589]/90"
+                >
+                  Continuar sin seleccionar items
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
         {/* Modal de Preclínica */}
         {preclinica && (

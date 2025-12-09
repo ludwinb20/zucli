@@ -11,7 +11,7 @@ export type ConsultationItemWithRelations = TransactionItemWithRelations;
 export interface Consultation {
   id: string;
   patientId: string;
-  doctorId: string;
+  doctorId: string | null; // ID del doctor (nullable si la especialidad no tiene doctores)
   diagnosis: string | null;
   currentIllness: string | null;
   vitalSigns: string | null;
@@ -35,13 +35,13 @@ export interface Consultation {
       id: string;
       name: string;
     };
-  };
+  } | null;
   items?: ConsultationItemWithRelations[];
 }
 
 export interface CreateConsultationData {
   patientId: string;
-  doctorId: string;
+  doctorId?: string | null;
   diagnosis?: string;
   currentIllness?: string;
   vitalSigns?: string;

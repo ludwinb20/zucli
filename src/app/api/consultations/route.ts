@@ -140,8 +140,8 @@ export async function POST(request: NextRequest) {
     const body: CreateConsultationData = await request.json();
     const { patientId, doctorId, diagnosis, currentIllness, vitalSigns, treatment, items, observations, status } = body;
 
-    // Validar campos requeridos
-    if (!patientId || !doctorId) {
+    // Validar campos requeridos (doctorId puede ser null si la especialidad no tiene doctores)
+    if (!patientId) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 });
     }
 

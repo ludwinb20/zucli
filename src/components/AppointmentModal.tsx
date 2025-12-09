@@ -26,6 +26,7 @@ export default function AppointmentModal({
   const [formData, setFormData] = useState({
     patientId: '',
     specialtyId: '',
+    doctorId: '',
     appointmentDate: '',
     appointmentTime: '',
     status: 'programado' as AppointmentStatus,
@@ -37,28 +38,71 @@ export default function AppointmentModal({
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
   const [availableDays, setAvailableDays] = useState<number[]>([]);
   const [selectedDateObj, setSelectedDateObj] = useState<Date | undefined>(undefined);
+  const [specialtyDoctors, setSpecialtyDoctors] = useState<Array<{ id: string; name: string }>>([]);
   const { toast } = useToast();
 
-  // Cargar días disponibles cuando se selecciona especialidad
+  // Cargar días disponibles y doctores cuando se selecciona especialidad
   useEffect(() => {
-    const loadAvailableDays = async () => {
+    const loadSpecialtyData = async () => {
       if (formData.specialtyId) {
         try {
-          const response = await fetch(`/api/specialties/${formData.specialtyId}/days`);
-          if (response.ok) {
-            const data = await response.json();
-            const days = data.days?.map((d: { dayOfWeek: number }) => d.dayOfWeek) || [];
-            setAvailableDays(days.length > 0 ? days : [0, 1, 2, 3, 4, 5, 6]); // Todos los días si no está configurado
+          // Cargar días disponibles
+          const daysResponse = await fetch(`/api/specialties/${formData.specialtyId}/days`);
+          if (daysResponse.ok) {
+            const daysData = await daysResponse.json();
+            const days = daysData.days?.map((d: { dayOfWeek: number }) => d.dayOfWeek) || [];
+            setAvailableDays(days.length > 0 ? days : [0, 1, 2, 3, 4, 5, 6]);
+          }
+
+          // Cargar doctores de la especialidad
+          const specialtyResponse = await fetch(`/api/specialties/${formData.specialtyId}`);
+          if (specialtyResponse.ok) {
+            const specialtyData = await specialtyResponse.json();
+            // El endpoint devuelve { specialty: { users: [...] } }
+            const doctors = Array.isArray(specialtyData.specialty?.users) 
+              ? specialtyData.specialty.users 
+              : [];
+            
+            console.log('Doctores cargados para especialidad:', doctors);
+            setSpecialtyDoctors(doctors);
+
+            // Si hay solo un doctor, asignarlo automáticamente
+            if (doctors.length === 1) {
+              setFormData(prev => ({
+                ...prev,
+                doctorId: doctors[0].id
+              }));
+            } else if (doctors.length > 1) {
+              // Si hay varios doctores, verificar si el doctorId actual es válido
+              setFormData(prev => {
+                const currentDoctorId = prev.doctorId;
+                const isValidDoctor = doctors.some((d: { id: string; name: string }) => d.id === currentDoctorId);
+                // Solo limpiar si el doctorId actual no es válido para esta especialidad
+                return {
+                  ...prev,
+                  doctorId: isValidDoctor ? currentDoctorId : ''
+                };
+              });
+            } else {
+              // Si no hay doctores, limpiar doctorId
+              setFormData(prev => ({
+                ...prev,
+                doctorId: ''
+              }));
+            }
           }
         } catch (error) {
-          console.error('Error loading available days:', error);
-          setAvailableDays([0, 1, 2, 3, 4, 5, 6]); // Default: todos los días
+          console.error('Error loading specialty data:', error);
+          setAvailableDays([0, 1, 2, 3, 4, 5, 6]);
+          setSpecialtyDoctors([]);
         }
       } else {
         setAvailableDays([]);
+        setSpecialtyDoctors([]);
+        setFormData(prev => ({ ...prev, doctorId: '' }));
       }
     };
-    loadAvailableDays();
+    loadSpecialtyData();
   }, [formData.specialtyId]);
 
   // Inicializar formulario cuando se abre el modal
@@ -70,6 +114,7 @@ export default function AppointmentModal({
         setFormData({
           patientId: appointment.patientId,
           specialtyId: appointment.specialtyId,
+          doctorId: appointment.doctorId || '',
           appointmentDate: appointmentDate.toISOString().split('T')[0],
           appointmentTime: appointmentDate.toTimeString().slice(0, 5),
           status: appointment.status,
@@ -81,6 +126,7 @@ export default function AppointmentModal({
         setFormData({
           patientId: '',
           specialtyId: '',
+          doctorId: '',
           appointmentDate: '',
           appointmentTime: '',
           status: 'programado',
@@ -89,6 +135,7 @@ export default function AppointmentModal({
         setSelectedDateObj(undefined);
       }
       setErrors({});
+      setSpecialtyDoctors([]);
     }
   }, [isOpen, appointment]);
 
@@ -102,6 +149,11 @@ export default function AppointmentModal({
 
     if (!formData.specialtyId) {
       newErrors.specialtyId = 'La especialidad es requerida';
+    }
+
+    // Validar doctor si hay varios disponibles
+    if (specialtyDoctors.length > 1 && !formData.doctorId) {
+      newErrors.doctorId = 'Debe seleccionar un doctor';
     }
 
     if (!formData.appointmentDate) {
@@ -139,6 +191,7 @@ export default function AppointmentModal({
       const data = {
         patientId: formData.patientId,
         specialtyId: formData.specialtyId,
+        doctorId: formData.doctorId || null,
         appointmentDate: appointmentDateTime,
         status: formData.status,
         notes: formData.notes.trim() || undefined
@@ -263,9 +316,9 @@ export default function AppointmentModal({
                   className="max-h-[300px]"
                 >
                   {specialties.map((specialty) => {
-                    const specialists = specialty.users || [];
+                    const specialists = Array.isArray(specialty.users) ? specialty.users : [];
                     const specialistNames = specialists
-                      .map(user => user.name)
+                      .map((user: { name: string }) => user.name)
                       .join(', ');
                     const displayText = specialistNames 
                       ? `${specialty.name} - ${specialistNames}`
@@ -284,6 +337,43 @@ export default function AppointmentModal({
               )}
             </div>
           </div>
+
+          {/* Select de Doctor - Solo si hay más de un doctor disponible */}
+          {specialtyDoctors.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="doctorId" className="text-sm font-medium text-gray-700">Doctor *</Label>
+              <Select
+                value={formData.doctorId}
+                onValueChange={(value) => handleInputChange('doctorId', value)}
+              >
+                <SelectTrigger className={`border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589] ${errors.doctorId ? 'border-red-500' : ''}`}>
+                  <SelectValue placeholder="Seleccionar doctor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {specialtyDoctors.map((doctor) => (
+                    <SelectItem key={doctor.id} value={doctor.id}>
+                      {doctor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.doctorId && (
+                <p className="text-sm text-red-500">{errors.doctorId}</p>
+              )}
+            </div>
+          )}
+
+          {/* Mensaje informativo si hay solo un doctor o ninguno */}
+          {formData.specialtyId && specialtyDoctors.length === 1 && (
+            <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
+              Doctor asignado automáticamente: {specialtyDoctors[0].name}
+            </div>
+          )}
+          {formData.specialtyId && specialtyDoctors.length === 0 && (
+            <div className="text-sm text-gray-600 bg-yellow-50 p-2 rounded border border-yellow-200">
+              Esta especialidad no tiene doctores registrados. La cita se creará sin asignar un doctor.
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Fecha */}

@@ -33,6 +33,7 @@ export default function NuevaConsultaDirectaModal({
   const [formData, setFormData] = useState({
     patientId: '',
     specialtyId: user?.role?.name === 'especialista' ? user.specialty?.id || '' : '',
+    doctorId: user?.role?.name === 'especialista' ? user.id || '' : '',
     preclinica: {
       presionArterial: '',
       temperatura: '',
@@ -52,6 +53,7 @@ export default function NuevaConsultaDirectaModal({
   const [loadingSpecialties, setLoadingSpecialties] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [specialtyDoctors, setSpecialtyDoctors] = useState<Array<{ id: string; name: string }>>([]);
 
   // Cargar especialidades
   useEffect(() => {
@@ -73,15 +75,44 @@ export default function NuevaConsultaDirectaModal({
 
       loadSpecialties();
 
-      // Si el usuario es especialista, usar su especialidad por defecto
+      // Si el usuario es especialista, usar su especialidad y doctorId por defecto
       if (user?.role?.name === 'especialista' && user.specialty?.id) {
         setFormData(prev => ({
           ...prev,
-          specialtyId: user.specialty!.id
+          specialtyId: user.specialty!.id,
+          doctorId: user.id
         }));
+        // Cargar doctores de la especialidad
+        loadSpecialtyDoctors(user.specialty.id);
       }
     }
   }, [isOpen, user]);
+
+  // Función para cargar doctores de una especialidad
+  const loadSpecialtyDoctors = async (specialtyId: string) => {
+    try {
+      const specialtyResponse = await fetch(`/api/specialties/${specialtyId}`);
+      if (specialtyResponse.ok) {
+        const specialtyData = await specialtyResponse.json();
+        const doctors = Array.isArray(specialtyData.specialty?.users) 
+          ? specialtyData.specialty.users 
+          : specialtyData.users || [];
+        
+        setSpecialtyDoctors(doctors);
+
+        // Si hay solo un doctor y no es especialista (para que no sobrescriba su propio id)
+        if (doctors.length === 1 && user?.role?.name !== 'especialista') {
+          setFormData(prev => ({
+            ...prev,
+            doctorId: doctors[0].id
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading specialty doctors:', error);
+      setSpecialtyDoctors([]);
+    }
+  };
 
   // Limpiar formulario cuando se abre el modal
   useEffect(() => {
@@ -89,6 +120,7 @@ export default function NuevaConsultaDirectaModal({
       setFormData({
         patientId: '',
         specialtyId: user?.role?.name === 'especialista' ? user.specialty?.id || '' : '',
+        doctorId: user?.role?.name === 'especialista' ? user.id || '' : '',
         preclinica: {
           presionArterial: '',
           temperatura: '',
@@ -103,6 +135,7 @@ export default function NuevaConsultaDirectaModal({
         }
       });
       setErrors({});
+      setSpecialtyDoctors([]);
     }
   }, [isOpen, user]);
 
@@ -115,6 +148,11 @@ export default function NuevaConsultaDirectaModal({
 
     if (!formData.specialtyId) {
       newErrors.specialtyId = 'La especialidad es requerida';
+    }
+
+    // Validar doctor si hay varios disponibles y no es especialista
+    if (user?.role?.name !== 'especialista' && specialtyDoctors.length > 1 && !formData.doctorId) {
+      newErrors.doctorId = 'Debe seleccionar un doctor';
     }
 
     // Validar preclínica (campos requeridos)
@@ -170,6 +208,7 @@ export default function NuevaConsultaDirectaModal({
         body: JSON.stringify({
           patientId: formData.patientId,
           specialtyId: formData.specialtyId,
+          doctorId: formData.doctorId || null,
           appointmentDate: now.toISOString(),
           status: 'pendiente',
           notes: 'Consulta directa creada desde modal'
@@ -332,13 +371,19 @@ export default function NuevaConsultaDirectaModal({
               <Select
                 value={formData.specialtyId}
                 onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, specialtyId: value }));
+                  setFormData(prev => ({ ...prev, specialtyId: value, doctorId: user?.role?.name === 'especialista' ? user.id || '' : '' }));
                   if (errors.specialtyId) {
                     setErrors(prev => {
                       const newErrors = { ...prev };
                       delete newErrors.specialtyId;
                       return newErrors;
                     });
+                  }
+                  // Cargar doctores de la especialidad seleccionada
+                  if (value) {
+                    loadSpecialtyDoctors(value);
+                  } else {
+                    setSpecialtyDoctors([]);
                   }
                 }}
                 disabled={user?.role?.name === 'especialista' || loadingSpecialties}
@@ -363,6 +408,59 @@ export default function NuevaConsultaDirectaModal({
                 </p>
               )}
             </div>
+
+            {/* Select de Doctor - Solo si hay más de un doctor disponible y no es especialista */}
+            {user?.role?.name !== 'especialista' && specialtyDoctors.length > 1 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Doctor *
+                </Label>
+                <Select
+                  value={formData.doctorId}
+                  onValueChange={(value) => {
+                    setFormData(prev => ({ ...prev, doctorId: value }));
+                    if (errors.doctorId) {
+                      setErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors.doctorId;
+                        return newErrors;
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger className={`border-gray-300 focus:border-[#2E9589] focus:ring-[#2E9589] ${errors.doctorId ? 'border-red-500' : ''}`}>
+                    <SelectValue placeholder="Seleccionar doctor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {specialtyDoctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        {doctor.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.doctorId && (
+                  <p className="text-sm text-red-500">{errors.doctorId}</p>
+                )}
+              </div>
+            )}
+
+            {/* Mensaje informativo si hay solo un doctor o ninguno */}
+            {formData.specialtyId && specialtyDoctors.length === 1 && user?.role?.name !== 'especialista' && (
+              <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
+                Doctor asignado automáticamente: {specialtyDoctors[0].name}
+              </div>
+            )}
+            {formData.specialtyId && specialtyDoctors.length === 0 && user?.role?.name !== 'especialista' && (
+              <div className="text-sm text-gray-600 bg-yellow-50 p-2 rounded border border-yellow-200">
+                Esta especialidad no tiene doctores registrados. La consulta se creará sin asignar un doctor.
+              </div>
+            )}
+            {user?.role?.name === 'especialista' && (
+              <div className="text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
+                Doctor asignado automáticamente: {user.name}
+              </div>
+            )}
 
             {/* Preclínica */}
             <div className="space-y-4 border-t border-gray-200 pt-4">

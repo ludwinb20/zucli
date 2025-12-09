@@ -58,6 +58,12 @@ export async function GET(
             name: true,
             description: true
           }
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       }
     });
@@ -87,7 +93,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { patientId, specialtyId, appointmentDate, status, notes } = body;
+    const { patientId, specialtyId, doctorId, appointmentDate, status, notes } = body;
 
     // Verificar que la cita existe
     const existingAppointment = await prisma.appointment.findUnique({
@@ -132,6 +138,7 @@ export async function PATCH(
       data: {
         ...(patientId && { patientId }),
         ...(specialtyId && { specialtyId }),
+        ...(doctorId !== undefined && { doctorId: doctorId || null }),
         ...(appointmentDate && { appointmentDate: new Date(appointmentDate) }),
         ...(status && { status }),
         ...(notes !== undefined && { notes: notes?.trim() || null })
@@ -147,6 +154,12 @@ export async function PATCH(
           }
         },
         specialty: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        doctor: {
           select: {
             id: true,
             name: true
@@ -173,7 +186,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body: UpdateAppointmentData = await request.json();
-    const { patientId, specialtyId, appointmentDate, status, notes } = body;
+    const { patientId, specialtyId, doctorId, appointmentDate, status, notes } = body;
 
     // Verificar si la cita existe
     const existingAppointment = await prisma.appointment.findUnique({
@@ -259,6 +272,7 @@ export async function PUT(
       data: {
         ...(patientId && { patientId }),
         ...(specialtyId && { specialtyId }),
+        ...(doctorId !== undefined && { doctorId: doctorId || null }),
         ...(appointmentDate && { appointmentDate: new Date(appointmentDate) }),
         ...(status && { status }),
         ...(turnNumber !== undefined && { turnNumber }),

@@ -86,7 +86,20 @@ export default function ConsultaExternaPage() {
       const appointmentsResponse = await fetch(`/api/appointments?${params.toString()}`);
       if (appointmentsResponse.ok) {
         const data = await appointmentsResponse.json();
-        setAppointments(data.appointments || data);
+        let appointments = data.appointments || data;
+        
+        // Si el usuario es especialista, filtrar para mostrar solo:
+        // - Citas con su doctorId
+        // - Citas de su especialidad con doctorId null
+        if (user?.role?.name === 'especialista' && user.id && user.specialty?.id) {
+          const specialtyId = user.specialty.id;
+          appointments = appointments.filter((apt: Appointment) => {
+            return apt.doctorId === user.id || 
+                   (apt.specialtyId === specialtyId && !apt.doctorId);
+          });
+        }
+        
+        setAppointments(appointments);
       }
 
       // Si es admin, cargar todas las especialidades para el filtro

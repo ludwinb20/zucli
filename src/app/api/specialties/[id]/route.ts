@@ -22,6 +22,21 @@ export async function GET(
       include: {
         specialtyDays: {
           orderBy: { dayOfWeek: 'asc' }
+        },
+        users: {
+          where: {
+            isActive: true,
+            role: {
+              name: 'especialista'
+            }
+          },
+          select: {
+            id: true,
+            name: true
+          },
+          orderBy: {
+            name: 'asc'
+          }
         }
       }
     });

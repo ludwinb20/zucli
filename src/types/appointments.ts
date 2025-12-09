@@ -31,6 +31,7 @@ export interface Appointment {
   id: string;
   patientId: string;
   specialtyId: string;
+  doctorId?: string | null; // ID del doctor asignado (nullable si la especialidad no tiene doctores)
   appointmentDate: Date;
   status: AppointmentStatus;
   turnNumber?: number | null; // Número de turno (solo para citas pendientes)
@@ -46,6 +47,7 @@ export interface Appointment {
 export interface CreateAppointmentData {
   patientId: string;
   specialtyId: string;
+  doctorId?: string | null;
   appointmentDate: Date;
   status?: AppointmentStatus;
   notes?: string;
@@ -54,6 +56,7 @@ export interface CreateAppointmentData {
 export interface UpdateAppointmentData {
   patientId?: string;
   specialtyId?: string;
+  doctorId?: string | null;
   appointmentDate?: Date;
   status?: AppointmentStatus;
   notes?: string;
