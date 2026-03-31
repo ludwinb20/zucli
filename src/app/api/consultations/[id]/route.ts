@@ -23,7 +23,9 @@ function buildConsultationUpdateData(
   const { isAdmin, canSetStatus } = options;
   const data: Prisma.ConsultationUpdateInput = {};
   if (isAdmin && body.doctorId !== undefined) {
-    data.doctorId = body.doctorId || null;
+    data.doctor = body.doctorId
+      ? { connect: { id: body.doctorId } }
+      : { disconnect: true };
   }
   if (canSetStatus && body.status !== undefined && body.status) {
     data.status = body.status;
