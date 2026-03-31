@@ -81,7 +81,15 @@ export async function GET(
           status: 'completado',
         },
         include: {
-          preclinica: true,
+          preclinica: {
+            include: {
+              appointment: {
+                include: {
+                  specialty: { select: { id: true, name: true } },
+                },
+              },
+            },
+          },
           specialty: { select: { id: true, name: true } },
         },
         orderBy: { appointmentDate: 'desc' },
