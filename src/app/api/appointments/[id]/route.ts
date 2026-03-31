@@ -1,33 +1,159 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import {
+  AppointmentTurnSnapshot,
+  renumberAffectedQueues,
+} from '@/lib/appointment-turns';
 import { UpdateAppointmentData } from '@/types/appointments';
 
-// Función para asignar número de turno
-async function assignTurnNumber(specialtyId: string, appointmentDate: Date): Promise<number> {
-  // Obtener el inicio del día en la zona horaria local
-  const dateStart = new Date(appointmentDate);
-  dateStart.setHours(0, 0, 0, 0);
-  
-  const dateEnd = new Date(dateStart);
-  dateEnd.setHours(23, 59, 59, 999);
+const appointmentInclude = {
+  patient: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      identityNumber: true,
+      phone: true,
+    },
+  },
+  specialty: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  doctor: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} as const;
 
-  // Contar cuántas citas pendientes hay para esta especialidad en este día
-  const count = await prisma.appointment.count({
-    where: {
-      specialtyId,
-      status: 'pendiente',
-      appointmentDate: {
-        gte: dateStart,
-        lte: dateEnd
-      },
-      turnNumber: {
-        not: null
-      }
+function snapshotFromRow(row: {
+  status: string;
+  specialtyId: string;
+  appointmentDate: Date;
+}): AppointmentTurnSnapshot {
+  return {
+    status: row.status,
+    specialtyId: row.specialtyId,
+    appointmentDate: row.appointmentDate,
+  };
+}
+
+async function mergeAndPersistAppointment(
+  id: string,
+  body: Partial<UpdateAppointmentData>
+): Promise<
+  | { ok: true; data: NonNullable<Awaited<ReturnType<typeof prisma.appointment.findUnique>>> }
+  | { ok: false; response: NextResponse }
+> {
+  const existing = await prisma.appointment.findUnique({ where: { id } });
+  if (!existing) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Cita no encontrada' }, { status: 404 }),
+    };
+  }
+
+  const { patientId, specialtyId, doctorId, appointmentDate, status, notes } = body;
+
+  const finalPatientId =
+    patientId !== undefined ? patientId : existing.patientId;
+  const finalSpecialtyId =
+    specialtyId !== undefined ? specialtyId : existing.specialtyId;
+  const finalDoctorId =
+    doctorId !== undefined ? doctorId || null : existing.doctorId;
+  const finalAppointmentDate =
+    appointmentDate !== undefined
+      ? new Date(appointmentDate as string | Date)
+      : existing.appointmentDate;
+  const finalStatus = status !== undefined ? status : existing.status;
+  const finalNotes =
+    notes !== undefined
+      ? typeof notes === 'string'
+        ? notes.trim() || null
+        : null
+      : existing.notes;
+
+  if (finalPatientId !== existing.patientId) {
+    const patient = await prisma.patient.findUnique({
+      where: { id: finalPatientId },
+    });
+    if (!patient) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 }),
+      };
     }
+  }
+
+  if (finalSpecialtyId !== existing.specialtyId) {
+    const specialty = await prisma.specialty.findUnique({
+      where: { id: finalSpecialtyId },
+    });
+    if (!specialty) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: 'Especialidad no encontrada' },
+          { status: 404 }
+        ),
+      };
+    }
+  }
+
+  const conflictingAppointment = await prisma.appointment.findFirst({
+    where: {
+      patientId: finalPatientId,
+      appointmentDate: finalAppointmentDate,
+      status: { not: 'cancelado' },
+      id: { not: id },
+    },
   });
 
-  // El siguiente número de turno es el count + 1
-  return count + 1;
+  if (conflictingAppointment) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'El paciente ya tiene una cita programada para esta fecha y hora' },
+        { status: 409 }
+      ),
+    };
+  }
+
+  const before = snapshotFromRow(existing);
+
+  await prisma.appointment.update({
+    where: { id },
+    data: {
+      patientId: finalPatientId,
+      specialtyId: finalSpecialtyId,
+      doctorId: finalDoctorId,
+      appointmentDate: finalAppointmentDate,
+      status: finalStatus,
+      notes: finalNotes,
+      turnNumber: null,
+    },
+  });
+
+  const afterRow = await prisma.appointment.findUniqueOrThrow({ where: { id } });
+  await renumberAffectedQueues(before, snapshotFromRow(afterRow));
+
+  const data = await prisma.appointment.findUnique({
+    where: { id },
+    include: appointmentInclude,
+  });
+
+  if (!data) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Cita no encontrada' }, { status: 404 }),
+    };
+  }
+
+  return { ok: true, data };
 }
 
 // GET /api/appointments/[id] - Obtener cita por ID
@@ -49,23 +175,23 @@ export async function GET(
             identityNumber: true,
             phone: true,
             birthDate: true,
-            gender: true
-          }
+            gender: true,
+          },
         },
         specialty: {
           select: {
             id: true,
             name: true,
-            description: true
-          }
+            description: true,
+          },
         },
         doctor: {
           select: {
             id: true,
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     if (!appointment) {
@@ -92,83 +218,14 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { patientId, specialtyId, doctorId, appointmentDate, status, notes } = body;
+    const body: Partial<UpdateAppointmentData> = await request.json();
 
-    // Verificar que la cita existe
-    const existingAppointment = await prisma.appointment.findUnique({
-      where: { id }
-    });
-
-    if (!existingAppointment) {
-      return NextResponse.json(
-        { error: 'Cita no encontrada' },
-        { status: 404 }
-      );
+    const result = await mergeAndPersistAppointment(id, body);
+    if (!result.ok) {
+      return result.response;
     }
 
-    // Si se está actualizando la fecha, verificar que no haya conflicto
-    if (appointmentDate) {
-      const newDate = new Date(appointmentDate);
-      const finalPatientId = patientId || existingAppointment.patientId;
-      
-      const conflictingAppointment = await prisma.appointment.findFirst({
-        where: {
-          patientId: finalPatientId,
-          appointmentDate: newDate,
-          status: {
-            not: 'cancelado'
-          },
-          id: {
-            not: id
-          }
-        }
-      });
-
-      if (conflictingAppointment) {
-        return NextResponse.json(
-          { error: 'El paciente ya tiene una cita programada para esta fecha y hora' },
-          { status: 409 }
-        );
-      }
-    }
-
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id },
-      data: {
-        ...(patientId && { patientId }),
-        ...(specialtyId && { specialtyId }),
-        ...(doctorId !== undefined && { doctorId: doctorId || null }),
-        ...(appointmentDate && { appointmentDate: new Date(appointmentDate) }),
-        ...(status && { status }),
-        ...(notes !== undefined && { notes: notes?.trim() || null })
-      },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            identityNumber: true,
-            phone: true
-          }
-        },
-        specialty: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        doctor: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    });
-
-    return NextResponse.json(updatedAppointment);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error('Error updating appointment:', error);
     return NextResponse.json(
@@ -185,119 +242,14 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const body: UpdateAppointmentData = await request.json();
-    const { patientId, specialtyId, doctorId, appointmentDate, status, notes } = body;
+    const body: Partial<UpdateAppointmentData> = await request.json();
 
-    // Verificar si la cita existe
-    const existingAppointment = await prisma.appointment.findUnique({
-      where: { id }
-    });
-
-    if (!existingAppointment) {
-      return NextResponse.json(
-        { error: 'Cita no encontrada' },
-        { status: 404 }
-      );
+    const result = await mergeAndPersistAppointment(id, body);
+    if (!result.ok) {
+      return result.response;
     }
 
-    // Si se está actualizando el paciente, verificar que existe
-    if (patientId && patientId !== existingAppointment.patientId) {
-      const patient = await prisma.patient.findUnique({
-        where: { id: patientId }
-      });
-
-      if (!patient) {
-        return NextResponse.json(
-          { error: 'Paciente no encontrado' },
-          { status: 404 }
-        );
-      }
-    }
-
-    // Si se está actualizando la especialidad, verificar que existe
-    if (specialtyId && specialtyId !== existingAppointment.specialtyId) {
-      const specialty = await prisma.specialty.findUnique({
-        where: { id: specialtyId }
-      });
-
-      if (!specialty) {
-        return NextResponse.json(
-          { error: 'Especialidad no encontrada' },
-          { status: 404 }
-        );
-      }
-    }
-
-    // Si se está actualizando la fecha, verificar que no haya conflicto
-    if (appointmentDate) {
-      const newDate = new Date(appointmentDate);
-      const finalPatientId = patientId || existingAppointment.patientId;
-      
-      const conflictingAppointment = await prisma.appointment.findFirst({
-        where: {
-          patientId: finalPatientId,
-          appointmentDate: newDate,
-          status: {
-            not: 'cancelado'
-          },
-          id: {
-            not: id
-          }
-        }
-      });
-
-      if (conflictingAppointment) {
-        return NextResponse.json(
-          { error: 'El paciente ya tiene una cita programada para esta fecha y hora' },
-          { status: 409 }
-        );
-      }
-    }
-
-    // Si el estado cambia a "pendiente", asignar número de turno
-    let turnNumber = existingAppointment.turnNumber;
-    const finalSpecialtyId = specialtyId || existingAppointment.specialtyId;
-    const finalAppointmentDate = appointmentDate ? new Date(appointmentDate) : existingAppointment.appointmentDate;
-
-    if (status === 'pendiente' && existingAppointment.status !== 'pendiente') {
-      // Si está pasando a pendiente, asignar número de turno
-      turnNumber = await assignTurnNumber(finalSpecialtyId, finalAppointmentDate);
-    } else if (status && status !== 'pendiente' && existingAppointment.status === 'pendiente') {
-      // Si está saliendo de pendiente, limpiar el número de turno
-      turnNumber = null;
-    }
-
-    const updatedAppointment = await prisma.appointment.update({
-      where: { id },
-      data: {
-        ...(patientId && { patientId }),
-        ...(specialtyId && { specialtyId }),
-        ...(doctorId !== undefined && { doctorId: doctorId || null }),
-        ...(appointmentDate && { appointmentDate: new Date(appointmentDate) }),
-        ...(status && { status }),
-        ...(turnNumber !== undefined && { turnNumber }),
-        ...(notes !== undefined && { notes: notes?.trim() || null })
-      },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            identityNumber: true,
-            phone: true
-          }
-        },
-        specialty: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      }
-    });
-
-    return NextResponse.json(updatedAppointment);
+    return NextResponse.json(result.data);
   } catch (error) {
     console.error('Error updating appointment:', error);
     return NextResponse.json(
@@ -315,9 +267,8 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Verificar si la cita existe
     const existingAppointment = await prisma.appointment.findUnique({
-      where: { id }
+      where: { id },
     });
 
     if (!existingAppointment) {
@@ -327,7 +278,6 @@ export async function DELETE(
       );
     }
 
-    // Verificar si la cita ya está cancelada
     if (existingAppointment.status === 'cancelado') {
       return NextResponse.json(
         { error: 'La cita ya está cancelada' },
@@ -335,7 +285,6 @@ export async function DELETE(
       );
     }
 
-    // Verificar si la cita ya está completada
     if (existingAppointment.status === 'completado') {
       return NextResponse.json(
         { error: 'No se puede cancelar una cita ya completada' },
@@ -343,12 +292,20 @@ export async function DELETE(
       );
     }
 
-    // Cancelar la cita
+    const before = snapshotFromRow(existingAppointment);
+
     await prisma.appointment.update({
       where: { id },
       data: {
-        status: 'cancelado'
-      }
+        status: 'cancelado',
+        turnNumber: null,
+      },
+    });
+
+    await renumberAffectedQueues(before, {
+      status: 'cancelado',
+      specialtyId: existingAppointment.specialtyId,
+      appointmentDate: existingAppointment.appointmentDate,
     });
 
     return NextResponse.json({ message: 'Cita cancelada exitosamente' });

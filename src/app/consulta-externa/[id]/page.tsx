@@ -598,6 +598,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
             treatment: consultaData.tratamientoNotas,
             observations: consultaData.observaciones,
             status: 'completed',
+            ...(preclinica?.id ? { preclinicaId: preclinica.id } : {}),
           }),
         });
       } else {
@@ -605,6 +606,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
       const consultationData: CreateConsultationData = {
         patientId: patient.id,
         doctorId: user?.role?.name === 'especialista' ? user.id : (appointment?.doctorId || null),
+        ...(preclinica?.id ? { preclinicaId: preclinica.id } : {}),
         diagnosis: consultaData.diagnostico,
         currentIllness: consultaData.sintomas,
         treatment: consultaData.tratamientoNotas,
@@ -1180,6 +1182,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                             treatment: consultaData.tratamientoNotas,
                             observations: consultaData.observaciones,
                             status: 'completed',
+                            ...(preclinica?.id ? { preclinicaId: preclinica.id } : {}),
                           }),
                         });
                       } else {
@@ -1187,6 +1190,7 @@ export default function ConsultaDetailPage({ params }: { params: Promise<{ id: s
                         const consultationData: CreateConsultationData = {
                           patientId: patient.id,
                           doctorId: user?.role?.name === 'especialista' ? user.id : (appointment?.doctorId || null),
+                          ...(preclinica?.id ? { preclinicaId: preclinica.id } : {}),
                           diagnosis: consultaData.diagnostico,
                           currentIllness: consultaData.sintomas,
                           treatment: consultaData.tratamientoNotas,

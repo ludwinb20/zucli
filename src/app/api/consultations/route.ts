@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { CreateConsultationData } from '@/types/consultations';
 import { TransactionItemWithRelations } from '@/types/transactions';
+import { preclinicaBelongsToPatient } from '@/lib/consultation-preclinica';
 
 // GET /api/consultations - Obtener consultas
 export async function GET(request: NextRequest) {
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: CreateConsultationData = await request.json();
-    const { patientId, doctorId, diagnosis, currentIllness, vitalSigns, treatment, items, observations, status } = body;
+    const { patientId, doctorId, preclinicaId, diagnosis, currentIllness, vitalSigns, treatment, items, observations, status } = body;
 
     // Validar campos requeridos (doctorId puede ser null si la especialidad no tiene doctores)
     if (!patientId) {
@@ -154,11 +155,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
     }
 
+    if (preclinicaId) {
+      const ok = await preclinicaBelongsToPatient(preclinicaId, patientId);
+      if (!ok) {
+        return NextResponse.json(
+          { error: 'La preclínica no corresponde a este paciente' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Crear la consulta
     const newConsultation = await prisma.consultation.create({
       data: {
         patientId,
         doctorId,
+        preclinicaId: preclinicaId || null,
         diagnosis: diagnosis || null,
         currentIllness: currentIllness || null,
         vitalSigns: vitalSigns || null,

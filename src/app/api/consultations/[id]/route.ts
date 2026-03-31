@@ -1,8 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { UpdateConsultationData } from '@/types/consultations';
+import { mergePreclinicaIdIntoUpdate } from '@/lib/consultation-preclinica';
+
+function canModifyConsultation(
+  roleName: string | undefined,
+  userId: string,
+  consultation: { doctorId: string | null }
+): boolean {
+  if (roleName === 'admin') return true;
+  if (roleName === 'especialista' && consultation.doctorId === userId) return true;
+  return false;
+}
+
+function buildConsultationUpdateData(
+  body: Partial<UpdateConsultationData>,
+  options: { isAdmin: boolean; canSetStatus: boolean }
+): Prisma.ConsultationUpdateInput {
+  const { isAdmin, canSetStatus } = options;
+  const data: Prisma.ConsultationUpdateInput = {};
+  if (isAdmin && body.doctorId !== undefined) {
+    data.doctorId = body.doctorId || null;
+  }
+  if (canSetStatus && body.status !== undefined && body.status) {
+    data.status = body.status;
+  }
+  if (body.diagnosis !== undefined) {
+    data.diagnosis = body.diagnosis || null;
+  }
+  if (body.currentIllness !== undefined) {
+    data.currentIllness = body.currentIllness || null;
+  }
+  if (body.vitalSigns !== undefined) {
+    data.vitalSigns = body.vitalSigns || null;
+  }
+  if (body.treatment !== undefined) {
+    data.treatment = body.treatment || null;
+  }
+  if (body.observations !== undefined) {
+    data.observations = body.observations || null;
+  }
+  return data;
+}
 
 // GET /api/consultations/[id] - Obtener consulta específica
 export async function GET(
@@ -55,7 +97,7 @@ export async function PUT(
 
     const { id } = await params;
     const body: UpdateConsultationData = await request.json();
-    const { doctorId, diagnosis, currentIllness, vitalSigns, treatment, observations, status } = body;
+    const { doctorId, preclinicaId, diagnosis, currentIllness, vitalSigns, treatment, observations, status } = body;
 
     // Verificar que la consulta existe
     const existingConsultation = await prisma.consultation.findUnique({
@@ -66,17 +108,45 @@ export async function PUT(
       return NextResponse.json({ error: 'Consulta no encontrada' }, { status: 404 });
     }
 
+    const roleName = session.user.role?.name;
+    const userId = session.user.id;
+    if (!canModifyConsultation(roleName, userId, existingConsultation)) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    }
+
+    const isAdmin = roleName === 'admin';
+    const isOwnerSpecialist =
+      roleName === 'especialista' && existingConsultation.doctorId === userId;
+    const updatePayload = buildConsultationUpdateData(
+      {
+        doctorId,
+        diagnosis,
+        currentIllness,
+        vitalSigns,
+        treatment,
+        observations,
+        status,
+      },
+      { isAdmin, canSetStatus: isAdmin || isOwnerSpecialist }
+    );
+
+    const preMerge = await mergePreclinicaIdIntoUpdate(
+      { preclinicaId },
+      existingConsultation,
+      isAdmin,
+      isOwnerSpecialist,
+      updatePayload
+    );
+    if (!preMerge.ok) {
+      return NextResponse.json(
+        { error: preMerge.error },
+        { status: preMerge.status }
+      );
+    }
+
     const updatedConsultation = await prisma.consultation.update({
       where: { id },
-      data: {
-        ...(doctorId && { doctorId }),
-        ...(diagnosis !== undefined && { diagnosis: diagnosis || null }),
-        ...(currentIllness !== undefined && { currentIllness: currentIllness || null }),
-        ...(vitalSigns !== undefined && { vitalSigns: vitalSigns || null }),
-        ...(treatment !== undefined && { treatment: treatment || null }),
-        ...(observations !== undefined && { observations: observations || null }),
-        ...(status && { status }),
-      },
+      data: updatePayload,
       include: {
         patient: {
           select: {
@@ -155,9 +225,44 @@ export async function PATCH(
       return NextResponse.json({ error: 'Consulta no encontrada' }, { status: 404 });
     }
 
+    const roleName = session.user.role?.name;
+    const userId = session.user.id;
+    if (!canModifyConsultation(roleName, userId, existingConsultation)) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    }
+
+    const isAdmin = roleName === 'admin';
+    const isOwnerSpecialist =
+      roleName === 'especialista' && existingConsultation.doctorId === userId;
+    const updatePayload = buildConsultationUpdateData(body, {
+      isAdmin,
+      canSetStatus: isAdmin || isOwnerSpecialist,
+    });
+
+    const preMerge = await mergePreclinicaIdIntoUpdate(
+      body,
+      existingConsultation,
+      isAdmin,
+      isOwnerSpecialist,
+      updatePayload
+    );
+    if (!preMerge.ok) {
+      return NextResponse.json(
+        { error: preMerge.error },
+        { status: preMerge.status }
+      );
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return NextResponse.json(
+        { error: 'No hay campos válidos para actualizar' },
+        { status: 400 }
+      );
+    }
+
     const updatedConsultation = await prisma.consultation.update({
       where: { id },
-      data: body,
+      data: updatePayload,
       include: {
         patient: {
           select: {
@@ -198,6 +303,12 @@ export async function DELETE(
 
     if (!existingConsultation) {
       return NextResponse.json({ error: 'Consulta no encontrada' }, { status: 404 });
+    }
+
+    const roleName = session.user.role?.name;
+    const userId = session.user.id;
+    if (!canModifyConsultation(roleName, userId, existingConsultation)) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
 
     await prisma.consultation.delete({

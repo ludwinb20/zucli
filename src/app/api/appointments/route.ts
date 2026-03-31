@@ -1,34 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { renumberPendienteQueue } from '@/lib/appointment-turns';
 import { CreateAppointmentData } from '@/types/appointments';
-
-// Función para asignar número de turno
-async function assignTurnNumber(specialtyId: string, appointmentDate: Date): Promise<number> {
-  // Obtener el inicio del día en la zona horaria local
-  const dateStart = new Date(appointmentDate);
-  dateStart.setHours(0, 0, 0, 0);
-  
-  const dateEnd = new Date(dateStart);
-  dateEnd.setHours(23, 59, 59, 999);
-
-  // Contar cuántas citas pendientes hay para esta especialidad en este día
-  const count = await prisma.appointment.count({
-    where: {
-      specialtyId,
-      status: 'pendiente',
-      appointmentDate: {
-        gte: dateStart,
-        lte: dateEnd
-      },
-      turnNumber: {
-        not: null
-      }
-    }
-  });
-
-  // El siguiente número de turno es el count + 1
-  return count + 1;
-}
 
 // GET /api/appointments - Obtener todas las citas con filtros
 export async function GET(request: NextRequest) {
@@ -100,7 +73,8 @@ export async function GET(request: NextRequest) {
       orderBy: status === 'pendiente' 
         ? [
             { turnNumber: 'asc' },
-            { appointmentDate: 'asc' }
+            { appointmentDate: 'asc' },
+            { id: 'asc' }
           ]
         : [
             { appointmentDate: 'asc' }
@@ -190,20 +164,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Si el estado es "pendiente", asignar número de turno
-    let turnNumber: number | null = null;
-    if (status === 'pendiente') {
-      turnNumber = await assignTurnNumber(specialtyId, new Date(appointmentDate));
-    }
+    const date = new Date(appointmentDate);
 
     const appointment = await prisma.appointment.create({
       data: {
         patientId,
         specialtyId,
         doctorId: doctorId || null,
-        appointmentDate: new Date(appointmentDate),
+        appointmentDate: date,
         status,
-        turnNumber,
+        turnNumber: null,
         notes: notes?.trim() || null
       },
       include: {
@@ -221,9 +191,46 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true
           }
+        },
+        doctor: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       }
     });
+
+    if (status === 'pendiente') {
+      await renumberPendienteQueue(specialtyId, date);
+      const refreshed = await prisma.appointment.findUnique({
+        where: { id: appointment.id },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              identityNumber: true,
+              phone: true
+            }
+          },
+          specialty: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          doctor: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
+      });
+      return NextResponse.json(refreshed, { status: 201 });
+    }
 
     return NextResponse.json(appointment, { status: 201 });
   } catch (error) {
