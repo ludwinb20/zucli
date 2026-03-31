@@ -34,7 +34,7 @@ export async function mergePreclinicaIdIntoUpdate(
     return { ok: true };
   }
   if (body.preclinicaId === null) {
-    updatePayload.preclinicaId = null;
+    updatePayload.preclinica = { disconnect: true };
     return { ok: true };
   }
   if (typeof body.preclinicaId !== 'string' || !body.preclinicaId.trim()) {
@@ -49,6 +49,6 @@ export async function mergePreclinicaIdIntoUpdate(
       error: 'La preclínica no corresponde a este paciente',
     };
   }
-  updatePayload.preclinicaId = body.preclinicaId;
+  updatePayload.preclinica = { connect: { id: body.preclinicaId } };
   return { ok: true };
 }
