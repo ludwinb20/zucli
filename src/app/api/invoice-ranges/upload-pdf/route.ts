@@ -1,7 +1,7 @@
 import "pdf-parse/worker";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { pdf } from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
 export const runtime = "nodejs";
 
@@ -30,7 +30,9 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Extraer texto del PDF
-    const pdfData = await pdf(buffer);
+    const parser = new PDFParse({ data: buffer });
+    const pdfData = await parser.getText();
+    await parser.destroy();
     const text = pdfData.text;
     console.log(text);
 

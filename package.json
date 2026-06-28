@@ -63,7 +63,7 @@
     "multer": "^2.0.2",
     "next": "15.5.7",
     "next-auth": "^4.24.11",
-    "pdf-parse": "^2.2.2",
+    "pdf-parse": "^2.4.5",
     "react": "19.1.2",
     "react-day-picker": "^9.10.0",
     "react-dom": "19.1.2",
