@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["pdf-parse", "@napi-rs/canvas", "pdfjs-dist"],
   // Configurar la raíz del workspace para Turbopack
   // Esto evita el warning cuando hay múltiples lockfiles en directorios padre
   turbopack: {
@@ -14,12 +15,6 @@ const nextConfig: NextConfig = {
   typescript: {
     // Ignorar errores de TypeScript durante el build (opcional)
     ignoreBuildErrors: false,
-  },
-  webpack: (config) => {
-    config.externals.push({
-      'pdf-parse': 'commonjs pdf-parse',
-    });
-    return config;
   },
   images: {
     domains: ['localhost'],

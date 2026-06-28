@@ -1,6 +1,9 @@
+import "pdf-parse/worker";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pdf } from "pdf-parse";
+
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
