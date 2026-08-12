@@ -94,7 +94,7 @@ export function generateSimpleReceipt(data: ReceiptPrintData): string {
 
   // Encabezado
   lines.push("");
-  lines.push(center(emisorNombre.toUpperCase()));
+  lines.push(center("MI HOSPITALITO ZUNIGA S. DE R.L."));
   lines.push("");
   lines.push(center("RECIBO DE PAGO"));
   lines.push(separator);
@@ -214,7 +214,7 @@ export function generateLegalInvoice(data: InvoicePrintData): string {
   // ENCABEZADO
   // ==========================================
   lines.push("");
-  lines.push(center(invoiceRange.nombreComercial.toUpperCase()));
+  lines.push(center("MI HOSPITALITO ZUNIGA S. DE R.L."));
   lines.push(center(invoiceRange.razonSocial));
   lines.push(center(`RTN: ${invoiceRange.rtn}`));
   lines.push("");
