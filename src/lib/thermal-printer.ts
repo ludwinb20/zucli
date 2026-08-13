@@ -460,7 +460,7 @@ export function generateSimpleReceiptFromDB(receipt: SimpleReceiptWithRelations)
 
   // Encabezado
   lines.push("");
-  lines.push(center((receipt.emisorNombre || "").toUpperCase()));
+  lines.push(center("MI HOSPITALITO ZUNIGA S. DE R.L."));
   lines.push("");
   lines.push(center("RECIBO DE PAGO"));
   lines.push(separator);
