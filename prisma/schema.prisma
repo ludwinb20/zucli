@@ -1099,7 +1099,7 @@ model InvoiceRange {
   nombreComercial    String   @db.Text // Nombre comercial
   cai                String // Código CAI autorizado por SAR
   fechaLimiteEmision DateTime // Fecha límite para emitir facturas
-  puntoEmision       String // Ej: "000-002"
+  puntoEmision       String   @db.VarChar(16) // Texto: "002" o "000-002". No usar entero: se pierden los ceros.
   rangoInicio        Int // Ej: 12701
   rangoFin           Int // Ej: 15700
   correlativoActual  Int      @default(0) // Último número usado

@@ -1,4 +1,4 @@
-import { formatDateTime, formatPhone, formatCurrency } from '../formatters';
+import { formatDateTime, formatPhone, formatCurrency, formatPuntoEmision, formatNumeroFacturaLegal } from '../formatters';
 
 describe('Formatters', () => {
   describe('formatDateTime', () => {
@@ -66,6 +66,32 @@ describe('Formatters', () => {
     it('should round to 2 decimal places', () => {
       const result = formatCurrency(10.999);
       expect(result).toContain('11');
+    });
+  });
+
+  describe('formatPuntoEmision', () => {
+    it('rellena ceros cuando el valor llegó como entero', () => {
+      expect(formatPuntoEmision(2)).toBe('002');
+      expect(formatPuntoEmision('2')).toBe('002');
+    });
+
+    it('conserva un punto que ya tiene 3 dígitos', () => {
+      expect(formatPuntoEmision('002')).toBe('002');
+    });
+
+    it('no altera un prefijo con establecimiento', () => {
+      expect(formatPuntoEmision('000-002')).toBe('000-002');
+    });
+  });
+
+  describe('formatNumeroFacturaLegal', () => {
+    it('antepone el establecimiento 000 y rellena el punto y el correlativo', () => {
+      expect(formatNumeroFacturaLegal(2, 15)).toBe('000-002-01-00000015');
+      expect(formatNumeroFacturaLegal('002', 15)).toBe('000-002-01-00000015');
+    });
+
+    it('no duplica el establecimiento si el punto ya lo trae', () => {
+      expect(formatNumeroFacturaLegal('000-002', 15)).toBe('000-002-01-00000015');
     });
   });
 });

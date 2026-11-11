@@ -2,6 +2,7 @@ import "pdf-parse/worker";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PDFParse } from "pdf-parse";
+import { formatNumeroFacturaLegal } from "@/lib/formatters";
 
 export const runtime = "nodejs";
 
@@ -77,7 +78,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      invoiceRange,
+      invoiceRange: {
+        ...invoiceRange,
+        puntoEmision: extractedData.puntoEmision,
+      },
       extractedData,
     });
   } catch (error) {
@@ -163,8 +167,7 @@ function parseSarPdf(text: string) {
     const rangoFin = rangoFinMatch ? parseInt(rangoFinMatch[1]) : 0;
     const cantidadAutorizada = cantidadStr ? parseInt(cantidadStr) : rangoFin - rangoInicio + 1;
 
-    // Generar número de factura de ejemplo
-    const numeroFactura = `${puntoEmision.padStart(3, "0")}-${puntoEmision.padStart(3, "0")}-01-${rangoInicio.toString().padStart(8, "0")}`;
+    const numeroFactura = formatNumeroFacturaLegal(puntoEmision, rangoInicio);
 
     return {
       rtn,

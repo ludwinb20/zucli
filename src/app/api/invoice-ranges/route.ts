@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { formatPuntoEmision } from "@/lib/formatters";
 
 export async function GET() {
   try {
@@ -9,7 +10,12 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(invoiceRanges);
+    return NextResponse.json(
+      invoiceRanges.map((range) => ({
+        ...range,
+        puntoEmision: formatPuntoEmision(range.puntoEmision),
+      }))
+    );
   } catch (error) {
     console.error("Error fetching invoice ranges:", error);
     return NextResponse.json(

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { extractISVFromTotal, calculateISV } from '@/lib/calculations';
+import { formatNumeroFacturaLegal } from '@/lib/formatters';
 
 // POST /api/invoices/generate - Generar factura legal o recibo simple
 export async function POST(request: NextRequest) {
@@ -206,8 +207,8 @@ export async function POST(request: NextRequest) {
         }, { status: 400 });
       }
 
-      // Generar número de factura
-      const numeroFactura = `${invoiceRange.puntoEmision}-01-${String(correlativo).padStart(8, '0')}`;
+      // Generar número de factura (el punto de emisión conserva ceros: 002, no 2)
+      const numeroFactura = formatNumeroFacturaLegal(invoiceRange.puntoEmision, correlativo);
 
       // Crear factura legal (SIN duplicar items)
       const invoice = await prisma.invoice.create({

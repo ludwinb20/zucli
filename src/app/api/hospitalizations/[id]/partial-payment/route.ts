@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { calculatePendingDays, hasDaysOverlap, getDailyRate } from '@/lib/hospitalization-helpers';
 import { extractISVFromTotal, calculateISV } from '@/lib/calculations';
+import { formatNumeroFacturaLegal } from '@/lib/formatters';
 
 // POST /api/hospitalizations/[id]/partial-payment - Crear un pago parcial de hospitalización
 export async function POST(
@@ -402,7 +403,7 @@ export async function POST(
           );
         }
 
-        const numeroFactura = `${invoiceRange.puntoEmision}-01-${String(correlativo).padStart(8, '0')}`;
+        const numeroFactura = formatNumeroFacturaLegal(invoiceRange.puntoEmision, correlativo);
 
         invoice = await prisma.invoice.create({
           data: {

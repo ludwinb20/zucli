@@ -42,6 +42,7 @@ import { InlineSpinner } from "@/components/ui/spinner";
 import { PdfUploadDropzone } from "@/components/PdfUploadDropzone";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { WeekDaySelector, getDayName } from "@/components/WeekDaySelector";
+import { formatNumeroFacturaLegal } from "@/lib/formatters";
 
 interface Specialty {
   id: string;
@@ -885,12 +886,10 @@ export default function AdminPanelPage() {
                   </div>
                   <div className="flex justify-between mt-1 text-xs text-gray-500">
                     <span>
-                      {invoiceRange.puntoEmision}-{invoiceRange.puntoEmision}-01-
-                      {invoiceRange.rangoInicio.toString().padStart(8, "0")}
+                      {formatNumeroFacturaLegal(invoiceRange.puntoEmision, Number(invoiceRange.rangoInicio))}
                     </span>
                     <span>
-                      {invoiceRange.puntoEmision}-{invoiceRange.puntoEmision}-01-
-                      {invoiceRange.rangoFin.toString().padStart(8, "0")}
+                      {formatNumeroFacturaLegal(invoiceRange.puntoEmision, Number(invoiceRange.rangoFin))}
                     </span>
                   </div>
                 </div>

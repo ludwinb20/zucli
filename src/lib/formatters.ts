@@ -66,3 +66,27 @@ export const truncateText = (text: string, maxLength: number) => {
   return text.slice(0, maxLength) + '...';
 };
 
+/**
+ * Punto de emisión SAR. Conserva ceros a la izquierda: 2 → "002".
+ * Un prefijo ya armado ("000-002") se deja igual.
+ */
+export const formatPuntoEmision = (puntoEmision: string | number | null | undefined) => {
+  const raw = String(puntoEmision ?? '').trim();
+  if (!raw || raw.includes('-')) return raw;
+  if (/^\d+$/.test(raw)) return raw.padStart(3, '0');
+  return raw;
+};
+
+/**
+ * Número fiscal: establecimiento 000 + punto de emisión (3) + tipo 01 + correlativo (8).
+ * 2 → "000-002-01-00000015". Si el punto ya trae establecimiento ("000-002"), no se duplica.
+ */
+export const formatNumeroFacturaLegal = (
+  puntoEmision: string | number | null | undefined,
+  correlativo: number
+) => {
+  const punto = formatPuntoEmision(puntoEmision);
+  const prefijo = punto.includes('-') ? punto : `000-${punto}`;
+  return `${prefijo}-01-${String(correlativo).padStart(8, '0')}`;
+};
+
