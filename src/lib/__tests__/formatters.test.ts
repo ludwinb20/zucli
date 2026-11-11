@@ -1,4 +1,4 @@
-import { formatDateTime, formatPhone, formatCurrency, formatPuntoEmision, formatNumeroFacturaLegal } from '../formatters';
+import { formatDateTime, formatPhone, formatCurrency, formatPuntoEmision, formatNumeroFacturaLegal, normalizeNumeroDocumento } from '../formatters';
 
 describe('Formatters', () => {
   describe('formatDateTime', () => {
@@ -92,6 +92,18 @@ describe('Formatters', () => {
 
     it('no duplica el establecimiento si el punto ya lo trae', () => {
       expect(formatNumeroFacturaLegal('000-002', 15)).toBe('000-002-01-00000015');
+    });
+  });
+
+  describe('normalizeNumeroDocumento', () => {
+    it('antepone 000 a facturas guardadas sin establecimiento', () => {
+      expect(normalizeNumeroDocumento('2-01-00000015')).toBe('000-002-01-00000015');
+      expect(normalizeNumeroDocumento('002-01-00000015')).toBe('000-002-01-00000015');
+    });
+
+    it('deja igual un número que ya tiene establecimiento y los recibos', () => {
+      expect(normalizeNumeroDocumento('000-002-01-00000015')).toBe('000-002-01-00000015');
+      expect(normalizeNumeroDocumento('REC-000001')).toBe('REC-000001');
     });
   });
 });

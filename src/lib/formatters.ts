@@ -90,3 +90,14 @@ export const formatNumeroFacturaLegal = (
   return `${prefijo}-01-${String(correlativo).padStart(8, '0')}`;
 };
 
+/**
+ * Número ya guardado. "2-01-00000015" y "002-01-00000015" pasan a
+ * "000-002-01-00000015". Recibos y números que ya tienen establecimiento no cambian.
+ */
+export const normalizeNumeroDocumento = (numeroDocumento: string | null | undefined) => {
+  const raw = String(numeroDocumento ?? '').trim();
+  const match = raw.match(/^(\d{1,3})-(\d{2})-(\d{8})$/);
+  if (!match) return raw;
+  return `000-${match[1].padStart(3, '0')}-${match[2]}-${match[3]}`;
+};
+

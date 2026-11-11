@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { normalizeNumeroDocumento } from '@/lib/formatters';
 
 // GET /api/reports/accounting - Reporte Contable (solo facturas legales)
 export async function GET(request: NextRequest) {
@@ -52,7 +53,10 @@ export async function GET(request: NextRequest) {
     const totalAmount = invoices.reduce((sum, inv) => sum + inv.total, 0);
 
     return NextResponse.json({
-      invoices,
+      invoices: invoices.map((invoice) => ({
+        ...invoice,
+        numeroDocumento: normalizeNumeroDocumento(invoice.numeroDocumento),
+      })),
       totalAmount,
       totalCount: invoices.length
     });

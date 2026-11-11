@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { normalizeNumeroDocumento } from '@/lib/formatters';
 
 // GET /api/reports/income - Reporte de Ingresos
 export async function GET(request: NextRequest) {
@@ -154,7 +155,9 @@ export async function GET(request: NextRequest) {
     // Preparar detalles
     const details = filteredInvoices.map(inv => ({
       id: inv.id,
-      numeroDocumento: inv.numeroDocumento,
+      numeroDocumento: inv.type === 'legal'
+        ? normalizeNumeroDocumento(inv.numeroDocumento)
+        : inv.numeroDocumento,
       fechaEmision: inv.fechaEmision,
       clienteNombre: inv.clienteNombre,
       clienteIdentidad: inv.clienteIdentidad,

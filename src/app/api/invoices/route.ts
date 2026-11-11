@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { PrismaWhereFilter } from '@/types/api';
+import { normalizeNumeroDocumento } from '@/lib/formatters';
 
 // GET /api/invoices - Obtener todas las facturas (legales y recibos simples)
 export async function GET(request: NextRequest) {
@@ -112,10 +113,14 @@ export async function GET(request: NextRequest) {
         createdAt: item.createdAt,
       }));
 
+      const numero = inv.type === 'legal'
+        ? normalizeNumeroDocumento(inv.numeroDocumento)
+        : inv.numeroDocumento;
+
       return {
         id: inv.id,
         type: inv.type,
-        numero: inv.numeroDocumento,
+        numero,
         fecha: inv.fechaEmision,
         clienteNombre: inv.clienteNombre,
         clienteRTN: inv.clienteRTN || undefined,
@@ -125,6 +130,7 @@ export async function GET(request: NextRequest) {
         patientIdentity: inv.payment.patient.identityNumber,
         raw: {
           ...inv,
+          numeroDocumento: numero,
           items: mappedItems, // Agregar items mapeados
         },
       };

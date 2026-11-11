@@ -4,6 +4,7 @@
 
 import { PaymentWithRelations } from "@/types/payments";
 import { InvoiceRange, SimpleReceiptWithRelations, LegalInvoiceWithRelations } from "@/types/invoices";
+import { normalizeNumeroDocumento } from "@/lib/formatters";
 
 // Función helper para formatear fechas en zona horaria de Honduras
 function formatDateHonduras(date: Date | string): string {
@@ -585,7 +586,7 @@ export function generateLegalInvoiceFromDB(invoice: LegalInvoiceWithRelations): 
   // ==========================================
   // INFORMACIÓN FISCAL
   // ==========================================
-  lines.push(`No. Factura: ${invoice.numeroDocumento}`);
+  lines.push(`No. Factura: ${normalizeNumeroDocumento(invoice.numeroDocumento)}`);
   if (invoice.cai) {
     lines.push(`CAI: ${invoice.cai}`);
   }
